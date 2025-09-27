@@ -1276,6 +1276,7 @@ class HealthCheckHandler(http.server.BaseHTTPRequestHandler):
     """Простой HTTP обработчик для health check"""
     
     def do_GET(self):
+        print(f"🔍 Получен запрос: {self.path}")
         if self.path in ['/health', '/']:
             self.send_response(200)
             self.send_header('Content-type', 'application/json')
@@ -1285,14 +1286,16 @@ class HealthCheckHandler(http.server.BaseHTTPRequestHandler):
                 "status": "healthy",
                 "timestamp": datetime.now().isoformat(),
                 "service": "telegram-bot",
-                "port": int(os.getenv('PORT', 8000)),
+                "port": int(os.getenv('PORT', 8080)),
                 "uptime": "running"
             }
             
             self.wfile.write(json.dumps(response).encode())
+            print(f"✅ Отправлен ответ: {response}")
         else:
             self.send_response(404)
             self.end_headers()
+            print(f"❌ 404 для пути: {self.path}")
     
     def log_message(self, format, *args):
         # Отключаем логирование запросов
@@ -1303,32 +1306,37 @@ def run_simple_web_server():
     """Запуск простого HTTP сервера для health check"""
     port = int(os.getenv('PORT', 8080))
     
+    print(f"🌐 Запуск простого health check сервера на порту {port}")
+    print(f"🌐 Health check доступен на: http://0.0.0.0:{port}/health")
+    print(f"🌐 Переменная PORT: {os.getenv('PORT', 'не установлена')}")
+    
+    # Создаем сервер с возможностью переиспользования адреса
+    class ReusableTCPServer(socketserver.TCPServer):
+        allow_reuse_address = True
+    
     try:
-        print(f"🌐 Запуск простого health check сервера на порту {port}")
-        print(f"🌐 Health check доступен на: http://0.0.0.0:{port}/health")
-        
-        # Создаем сервер с возможностью переиспользования адреса
-        class ReusableTCPServer(socketserver.TCPServer):
-            allow_reuse_address = True
-        
         with ReusableTCPServer(("0.0.0.0", port), HealthCheckHandler) as httpd:
             print(f"✅ Health check сервер запущен на порту {port}")
+            print(f"✅ Сервер слушает на 0.0.0.0:{port}")
             httpd.serve_forever()
             
     except Exception as e:
         print(f"❌ Ошибка запуска простого сервера: {e}")
+        print(f"❌ Тип ошибки: {type(e).__name__}")
+        print(f"❌ Детали ошибки: {str(e)}")
+        
         # Пробуем альтернативный порт
         try:
             alt_port = 8080
             print(f"🔄 Пробуем альтернативный порт {alt_port}")
-            class ReusableTCPServer(socketserver.TCPServer):
-                allow_reuse_address = True
             
             with ReusableTCPServer(("0.0.0.0", alt_port), HealthCheckHandler) as httpd:
                 print(f"✅ Health check сервер запущен на порту {alt_port}")
                 httpd.serve_forever()
         except Exception as e2:
             print(f"❌ Ошибка на альтернативном порту: {e2}")
+            print(f"❌ Тип ошибки: {type(e2).__name__}")
+            print(f"❌ Детали ошибки: {str(e2)}")
 
 
 def run_web_server():
