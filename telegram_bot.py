@@ -1386,12 +1386,16 @@ def main():
     # Добавляем обработчик ошибок
     application.add_error_handler(bot.error_handler)
     
-    # Запускаем задачу очистки в фоне
-    application.job_queue.run_repeating(
-        lambda context: asyncio.create_task(cleanup_task(bot)),
-        interval=3600,  # Каждый час
-        first=60  # Первый запуск через минуту
-    )
+    # Запускаем задачу очистки в фоне (только если JobQueue доступен)
+    if application.job_queue:
+        application.job_queue.run_repeating(
+            lambda context: asyncio.create_task(cleanup_task(bot)),
+            interval=3600,  # Каждый час
+            first=60  # Первый запуск через минуту
+        )
+        print("✅ Задача очистки запланирована")
+    else:
+        print("⚠️ JobQueue недоступен, задача очистки не запланирована")
     
     # Запускаем бота
     print("🤖 Запуск Trusted Currency Rate бота...")
