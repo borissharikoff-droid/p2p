@@ -477,7 +477,7 @@ class TrustedCurrencyRateBot:
     async def handle_wallet_rename_init(self, query, user, wallet_id: int):
         try:
             self.waiting_wallet_rename[user.id] = wallet_id
-            wallet = self.db_manager.get_wallet_by_id(user.id, wallet_id)
+            wallet = self.db_manager.get_wallet(user.id, wallet_id)
             if not wallet:
                 await query.edit_message_text("❌ Кошелек не найден.")
                 return
@@ -496,7 +496,7 @@ class TrustedCurrencyRateBot:
         try:
             self.waiting_wallet_readdress[user.id] = wallet_id
             # Получаем текущий адрес кошелька
-            wallet = self.db.get_wallet(user.id, wallet_id)
+            wallet = self.db_manager.get_wallet(user.id, wallet_id)
             current_address = wallet['address'] if wallet else "неизвестен"
             
             keyboard = [[InlineKeyboardButton("⬅️ Назад", callback_data=f"wallet_view_{wallet_id}")]]
