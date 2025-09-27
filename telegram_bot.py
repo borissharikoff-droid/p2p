@@ -1267,7 +1267,11 @@ def run_web_server():
     app.router.add_get('/health', health_check)
     
     port = int(os.getenv('PORT', 8000))
-    web.run_app(app, host='0.0.0.0', port=port)
+    try:
+        print(f"🌐 Запуск health check сервера на порту {port}")
+        web.run_app(app, host='0.0.0.0', port=port)
+    except Exception as e:
+        print(f"❌ Ошибка запуска health check сервера: {e}")
 
 
 def main():
@@ -1302,18 +1306,22 @@ def main():
         first=60  # Первый запуск через минуту
     )
     
-    # Запускаем HTTP сервер для health check в отдельном потоке
-    web_thread = threading.Thread(target=run_web_server, daemon=True)
-    web_thread.start()
-    
     # Запускаем бота
     print("🤖 Запуск Trusted Currency Rate бота...")
     print("📱 Бот готов к работе!")
     print("💡 Отправьте /start боту для получения курсов USDT")
-    print("🔄 Inline режим: @parseetestbot_bot [сумма] для конвертации")
+    print("🔄 Inline режим: @DoxP2P_bot [сумма] для конвертации")
     print("⚡ Оптимизирован для высокой нагрузки (500+ пользователей/день)")
     print("🔄 Кэширование: 60 сек, Rate limiting: 30 сек")
-    print("🌐 Health check: http://localhost:8000/health")
+    
+    # Запускаем HTTP сервер для health check в отдельном потоке
+    port = int(os.getenv('PORT', 8000))
+    print(f"🌐 Health check: http://localhost:{port}/health")
+    web_thread = threading.Thread(target=run_web_server, daemon=True)
+    web_thread.start()
+    
+    # Небольшая задержка для запуска health check сервера
+    time.sleep(2)
     
     # Используем run_polling() вместо await
     application.run_polling()
