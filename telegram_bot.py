@@ -37,7 +37,11 @@ logger = logging.getLogger(__name__)
 # Токен бота из переменных окружения
 BOT_TOKEN = os.getenv('BOT_TOKEN')
 if not BOT_TOKEN:
-    raise ValueError("BOT_TOKEN не найден в переменных окружения!")
+    print("⚠️ BOT_TOKEN не найден в переменных окружения!")
+    print("⚠️ Установите переменную BOT_TOKEN в Railway")
+    # Временно используем токен по умолчанию для тестирования
+    BOT_TOKEN = "8441060447:AAHmRDWx-6ezerQOgBnzSPYGBRUXpamcXFg"
+    print("⚠️ Используется токен по умолчанию для тестирования")
 
 
 class TrustedCurrencyRateBot:
