@@ -20,6 +20,8 @@ import asyncio
 from dotenv import load_dotenv
 from aiohttp import web
 import threading
+import http.server
+import socketserver
 
 # Загружаем переменные окружения
 load_dotenv()
@@ -1270,26 +1272,72 @@ async def health_check(request):
         }, status=500)
 
 
+class HealthCheckHandler(http.server.BaseHTTPRequestHandler):
+    """Простой HTTP обработчик для health check"""
+    
+    def do_GET(self):
+        if self.path in ['/health', '/']:
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json')
+            self.end_headers()
+            
+            response = {
+                "status": "healthy",
+                "timestamp": datetime.now().isoformat(),
+                "service": "telegram-bot",
+                "port": int(os.getenv('PORT', 8000)),
+                "uptime": "running"
+            }
+            
+            self.wfile.write(json.dumps(response).encode())
+        else:
+            self.send_response(404)
+            self.end_headers()
+    
+    def log_message(self, format, *args):
+        # Отключаем логирование запросов
+        pass
+
+
+def run_simple_web_server():
+    """Запуск простого HTTP сервера для health check"""
+    port = int(os.getenv('PORT', 8000))
+    
+    try:
+        print(f"🌐 Запуск простого health check сервера на порту {port}")
+        print(f"🌐 Health check доступен на: http://0.0.0.0:{port}/health")
+        
+        with socketserver.TCPServer(("0.0.0.0", port), HealthCheckHandler) as httpd:
+            httpd.serve_forever()
+            
+    except Exception as e:
+        print(f"❌ Ошибка запуска простого сервера: {e}")
+        # Пробуем альтернативный порт
+        try:
+            alt_port = 8080
+            print(f"🔄 Пробуем альтернативный порт {alt_port}")
+            with socketserver.TCPServer(("0.0.0.0", alt_port), HealthCheckHandler) as httpd:
+                httpd.serve_forever()
+        except Exception as e2:
+            print(f"❌ Ошибка на альтернативном порту: {e2}")
+
+
 def run_web_server():
-    """Запуск HTTP сервера для health check"""
+    """Запуск HTTP сервера для health check (aiohttp)"""
     app = web.Application()
     app.router.add_get('/health', health_check)
     app.router.add_get('/', health_check)  # Добавляем корневой путь
     
     port = int(os.getenv('PORT', 8000))
     try:
-        print(f"🌐 Запуск health check сервера на порту {port}")
+        print(f"🌐 Запуск aiohttp health check сервера на порту {port}")
         print(f"🌐 Health check доступен на: http://0.0.0.0:{port}/health")
         web.run_app(app, host='0.0.0.0', port=port, access_log=None)
     except Exception as e:
-        print(f"❌ Ошибка запуска health check сервера: {e}")
-        # Пробуем альтернативный порт
-        try:
-            alt_port = 8080
-            print(f"🔄 Пробуем альтернативный порт {alt_port}")
-            web.run_app(app, host='0.0.0.0', port=alt_port, access_log=None)
-        except Exception as e2:
-            print(f"❌ Ошибка на альтернативном порту: {e2}")
+        print(f"❌ Ошибка запуска aiohttp сервера: {e}")
+        # Fallback на простой сервер
+        print("🔄 Переключаемся на простой HTTP сервер")
+        run_simple_web_server()
 
 
 def main():
@@ -1338,7 +1386,8 @@ def main():
     print(f"🌐 Переменная PORT: {os.getenv('PORT', 'не установлена')}")
     print(f"🌐 Используемый порт: {port}")
     
-    web_thread = threading.Thread(target=run_web_server, daemon=True)
+    # Пробуем сначала простой HTTP сервер
+    web_thread = threading.Thread(target=run_simple_web_server, daemon=True)
     web_thread.start()
     
     # Небольшая задержка для запуска health check сервера
