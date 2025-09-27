@@ -1254,24 +1254,42 @@ async def cleanup_task(bot):
 
 async def health_check(request):
     """Health check endpoint для Railway"""
-    return web.json_response({
-        "status": "healthy",
-        "timestamp": datetime.now().isoformat(),
-        "service": "telegram-bot"
-    })
+    try:
+        return web.json_response({
+            "status": "healthy",
+            "timestamp": datetime.now().isoformat(),
+            "service": "telegram-bot",
+            "port": int(os.getenv('PORT', 8000)),
+            "uptime": "running"
+        })
+    except Exception as e:
+        return web.json_response({
+            "status": "error",
+            "error": str(e),
+            "timestamp": datetime.now().isoformat()
+        }, status=500)
 
 
 def run_web_server():
     """Запуск HTTP сервера для health check"""
     app = web.Application()
     app.router.add_get('/health', health_check)
+    app.router.add_get('/', health_check)  # Добавляем корневой путь
     
     port = int(os.getenv('PORT', 8000))
     try:
         print(f"🌐 Запуск health check сервера на порту {port}")
-        web.run_app(app, host='0.0.0.0', port=port)
+        print(f"🌐 Health check доступен на: http://0.0.0.0:{port}/health")
+        web.run_app(app, host='0.0.0.0', port=port, access_log=None)
     except Exception as e:
         print(f"❌ Ошибка запуска health check сервера: {e}")
+        # Пробуем альтернативный порт
+        try:
+            alt_port = 8080
+            print(f"🔄 Пробуем альтернативный порт {alt_port}")
+            web.run_app(app, host='0.0.0.0', port=alt_port, access_log=None)
+        except Exception as e2:
+            print(f"❌ Ошибка на альтернативном порту: {e2}")
 
 
 def main():
@@ -1317,11 +1335,16 @@ def main():
     # Запускаем HTTP сервер для health check в отдельном потоке
     port = int(os.getenv('PORT', 8000))
     print(f"🌐 Health check: http://localhost:{port}/health")
+    print(f"🌐 Переменная PORT: {os.getenv('PORT', 'не установлена')}")
+    print(f"🌐 Используемый порт: {port}")
+    
     web_thread = threading.Thread(target=run_web_server, daemon=True)
     web_thread.start()
     
     # Небольшая задержка для запуска health check сервера
-    time.sleep(2)
+    print("⏳ Ожидание запуска health check сервера...")
+    time.sleep(3)
+    print("✅ Health check сервер должен быть запущен")
     
     # Используем run_polling() вместо await
     application.run_polling()
