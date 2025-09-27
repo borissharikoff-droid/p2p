@@ -246,11 +246,11 @@ class TrustedCurrencyRateBot:
                 
                 # Формируем сообщение в указанном формате
                 message = f"💱 USDT/RUB • Актуальные курсы\n"
-                message += f"━━━━━━━━━━━━━━━━━━━━\n"
+                message += f"━━━━━━━━━━━━━━━━━\n"
                 message += f"💰 Средний курс: {avg_rate:.2f}₽ за 1 USDT\n"
                 message += f"📈 Курс продажи: {best_exchanger['rate']:.2f}₽ за 1 USDT\n"
                 message += f"📉 Курс покупки: {min(rates):.2f}₽ за 1 USDT\n"
-                message += f"━━━━━━━━━━━━━━━━━━━━\n"
+                message += f"━━━━━━━━━━━━━━━━━\n"
                 message += f"🕘 Обновлено: {get_moscow_time().strftime('%H:%M • %d.%m.%Y')}"
                 
                 # Создаем клавиатуру с кнопками
