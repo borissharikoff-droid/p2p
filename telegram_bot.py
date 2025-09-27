@@ -477,10 +477,15 @@ class TrustedCurrencyRateBot:
     async def handle_wallet_rename_init(self, query, user, wallet_id: int):
         try:
             self.waiting_wallet_rename[user.id] = wallet_id
+            wallet = self.db_manager.get_wallet_by_id(user.id, wallet_id)
+            if not wallet:
+                await query.edit_message_text("❌ Кошелек не найден.")
+                return
+                
             keyboard = [[InlineKeyboardButton("⬅️ Назад", callback_data=f"wallet_view_{wallet_id}")]]
             await query.edit_message_text(
-                "✏️ <b>Новое название</b>\n\nПришлите новое имя для кошелька или отправьте '-' чтобы убрать название.",
-                parse_mode='HTML',
+                f"✏️ **Новое название**\n\nПришлите новое имя для кошелька или отправьте '-' чтобы убрать название.\n\n**Название:** {wallet['label'] or '—'} (USDT TRC20)\n\nАдрес: `{wallet['address']}`",
+                parse_mode='Markdown',
                 reply_markup=InlineKeyboardMarkup(keyboard)
             )
         except Exception as e:
@@ -496,8 +501,8 @@ class TrustedCurrencyRateBot:
             
             keyboard = [[InlineKeyboardButton("⬅️ Назад", callback_data=f"wallet_view_{wallet_id}")]]
             await query.edit_message_text(
-                f"🔁 <b>Новый адрес</b>\n\nАдрес: {current_address}\n\nПришлите новый адрес в формате:\nUSDT TRC20 - &lt;адрес&gt;\n\nПример:\nUSDT TRC20 - PY3cykOJTeZUEGPHwSZxe29EdyznOB8X7",
-                parse_mode='HTML',
+                f"🔁 **Новый адрес**\n\nАдрес: `{current_address}`\n\nПришлите новый адрес в формате:\n`USDT TRC20 - <адрес>`\n\nПример:\n`USDT TRC20 - PY3cykOJTeZUEGPHwSZxe29EdyznOB8X7`",
+                parse_mode='Markdown',
                 reply_markup=InlineKeyboardMarkup(keyboard)
             )
         except Exception as e:
@@ -716,7 +721,8 @@ class TrustedCurrencyRateBot:
                 reply_markup = InlineKeyboardMarkup(keyboard)
                 
                 await update.message.reply_text(
-                    f"✅ Кошелек добавлен\nАдрес: {address}\nНазвание: {label or '—'}",
+                    f"✅ **Кошелек добавлен**\n\nАдрес: `{address}`\n\nНазвание: {label or '—'}",
+                    parse_mode='Markdown',
                     reply_markup=reply_markup
                 )
             else:
