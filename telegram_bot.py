@@ -16,6 +16,7 @@ from database import DatabaseManager
 from cache_manager import CacheManager
 import json
 from datetime import datetime
+import pytz
 import asyncio
 from dotenv import load_dotenv
 from aiohttp import web
@@ -33,6 +34,11 @@ logging.basicConfig(
     level=logging.INFO
 )
 logger = logging.getLogger(__name__)
+
+def get_moscow_time():
+    """Получить текущее московское время"""
+    moscow_tz = pytz.timezone('Europe/Moscow')
+    return datetime.now(moscow_tz)
 
 # Токен бота из переменных окружения
 BOT_TOKEN = os.getenv('BOT_TOKEN')
@@ -245,7 +251,7 @@ class TrustedCurrencyRateBot:
                 message += f"📈 Курс продажи: {best_exchanger['rate']:.2f}₽ за 1 USDT\n"
                 message += f"📉 Курс покупки: {min(rates):.2f}₽ за 1 USDT\n"
                 message += f"━━━━━━━━━━━━━━━━━━━━\n"
-                message += f"🕘 Обновлено: {datetime.now().strftime('%H:%M • %d.%m.%Y')}"
+                message += f"🕘 Обновлено: {get_moscow_time().strftime('%H:%M • %d.%m.%Y')}"
                 
                 # Создаем клавиатуру с кнопками
                 keyboard = [
@@ -328,7 +334,7 @@ class TrustedCurrencyRateBot:
                     message += f"📈 Продажа: {sell_rate:.2f}₽ • 📉 Покупка: {buy_rate:.2f}₽ • ⭐️ {exchanger['reviews_count']} отзывов\n\n"
                 
                 # Добавляем время обновления
-                message += f"🕘 Обновлено: {datetime.now().strftime('%H:%M:%S')}"
+                message += f"🕘 Обновлено: {get_moscow_time().strftime('%H:%M:%S')}"
                 
                 # Создаем клавиатуру с кнопками
                 keyboard = [
@@ -859,7 +865,7 @@ class TrustedCurrencyRateBot:
                         f"💵 Конвертация валют\n\n"
                         f"💰 Средний курс: {rate:.2f}₽ за 1$\n"
                         f"💱 {amount:,.2f} USDT = {rub_amount:,.2f}₽\n\n"
-                        f"🕘 Обновлено: {datetime.now().strftime('%H:%M %d.%m.%Y')}"
+                        f"🕘 Обновлено: {get_moscow_time().strftime('%H:%M %d.%m.%Y')}"
                     )
                 )
             )
@@ -875,7 +881,7 @@ class TrustedCurrencyRateBot:
                         f"💵 Конвертация валют\n\n"
                         f"💰 Средний курс: {rate:.2f}₽ за 1$\n"
                         f"💱 {amount:,.2f}₽ = {usdt_amount:.4f} USDT\n\n"
-                        f"🕘 Обновлено: {datetime.now().strftime('%H:%M %d.%m.%Y')}"
+                        f"🕘 Обновлено: {get_moscow_time().strftime('%H:%M %d.%m.%Y')}"
                     )
                 )
             )
@@ -917,7 +923,7 @@ class TrustedCurrencyRateBot:
                         f"💵 Конвертация валют\n\n"
                         f"💰 Средний курс: {rate:.2f}₽ за 1$\n"
                         f"💱 {amount:,.2f}₽ = {usdt_amount:.4f} USDT\n\n"
-                        f"🕘 Обновлено: {datetime.now().strftime('%H:%M %d.%m.%Y')}"
+                        f"🕘 Обновлено: {get_moscow_time().strftime('%H:%M %d.%m.%Y')}"
                     )
                 )
             ]
@@ -933,7 +939,7 @@ class TrustedCurrencyRateBot:
                         f"💵 Конвертация валют\n\n"
                         f"💰 Средний курс: {rate:.2f}₽ за 1$\n"
                         f"💱 {amount:,.2f} USDT = {rub_amount:,.2f}₽\n\n"
-                        f"🕘 Обновлено: {datetime.now().strftime('%H:%M %d.%m.%Y')}"
+                        f"🕘 Обновлено: {get_moscow_time().strftime('%H:%M %d.%m.%Y')}"
                     )
                 )
             ]
@@ -1263,7 +1269,7 @@ async def health_check(request):
     try:
         return web.json_response({
             "status": "healthy",
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": get_moscow_time().isoformat(),
             "service": "telegram-bot",
             "port": int(os.getenv('PORT', 8000)),
             "uptime": "running"
@@ -1272,7 +1278,7 @@ async def health_check(request):
         return web.json_response({
             "status": "error",
             "error": str(e),
-            "timestamp": datetime.now().isoformat()
+            "timestamp": get_moscow_time().isoformat()
         }, status=500)
 
 
@@ -1288,7 +1294,7 @@ class HealthCheckHandler(http.server.BaseHTTPRequestHandler):
             
             response = {
                 "status": "healthy",
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": get_moscow_time().isoformat(),
                 "service": "telegram-bot",
                 "port": int(os.getenv('PORT', 8080)),
                 "uptime": "running"
