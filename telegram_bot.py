@@ -1301,7 +1301,7 @@ class HealthCheckHandler(http.server.BaseHTTPRequestHandler):
 
 def run_simple_web_server():
     """Запуск простого HTTP сервера для health check"""
-    port = int(os.getenv('PORT', 8000))
+    port = int(os.getenv('PORT', 8080))
     
     try:
         print(f"🌐 Запуск простого health check сервера на порту {port}")
@@ -1337,7 +1337,7 @@ def run_web_server():
     app.router.add_get('/health', health_check)
     app.router.add_get('/', health_check)  # Добавляем корневой путь
     
-    port = int(os.getenv('PORT', 8000))
+    port = int(os.getenv('PORT', 8080))
     try:
         print(f"🌐 Запуск aiohttp health check сервера на порту {port}")
         print(f"🌐 Health check доступен на: http://0.0.0.0:{port}/health")
@@ -1390,7 +1390,7 @@ def main():
     print("🔄 Кэширование: 60 сек, Rate limiting: 30 сек")
     
     # Запускаем HTTP сервер для health check в отдельном потоке
-    port = int(os.getenv('PORT', 8000))
+    port = int(os.getenv('PORT', 8080))
     print(f"🌐 Health check: http://localhost:{port}/health")
     print(f"🌐 Переменная PORT: {os.getenv('PORT', 'не установлена')}")
     print(f"🌐 Используемый порт: {port}")
