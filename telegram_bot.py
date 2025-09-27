@@ -1307,7 +1307,12 @@ def run_simple_web_server():
         print(f"🌐 Запуск простого health check сервера на порту {port}")
         print(f"🌐 Health check доступен на: http://0.0.0.0:{port}/health")
         
-        with socketserver.TCPServer(("0.0.0.0", port), HealthCheckHandler) as httpd:
+        # Создаем сервер с возможностью переиспользования адреса
+        class ReusableTCPServer(socketserver.TCPServer):
+            allow_reuse_address = True
+        
+        with ReusableTCPServer(("0.0.0.0", port), HealthCheckHandler) as httpd:
+            print(f"✅ Health check сервер запущен на порту {port}")
             httpd.serve_forever()
             
     except Exception as e:
@@ -1316,7 +1321,11 @@ def run_simple_web_server():
         try:
             alt_port = 8080
             print(f"🔄 Пробуем альтернативный порт {alt_port}")
-            with socketserver.TCPServer(("0.0.0.0", alt_port), HealthCheckHandler) as httpd:
+            class ReusableTCPServer(socketserver.TCPServer):
+                allow_reuse_address = True
+            
+            with ReusableTCPServer(("0.0.0.0", alt_port), HealthCheckHandler) as httpd:
+                print(f"✅ Health check сервер запущен на порту {alt_port}")
                 httpd.serve_forever()
         except Exception as e2:
             print(f"❌ Ошибка на альтернативном порту: {e2}")
@@ -1385,15 +1394,31 @@ def main():
     print(f"🌐 Health check: http://localhost:{port}/health")
     print(f"🌐 Переменная PORT: {os.getenv('PORT', 'не установлена')}")
     print(f"🌐 Используемый порт: {port}")
+    print(f"🌐 Все переменные окружения: {dict(os.environ)}")
     
     # Пробуем сначала простой HTTP сервер
+    print("🚀 Запуск health check сервера...")
     web_thread = threading.Thread(target=run_simple_web_server, daemon=True)
     web_thread.start()
     
     # Небольшая задержка для запуска health check сервера
     print("⏳ Ожидание запуска health check сервера...")
-    time.sleep(3)
+    time.sleep(5)
     print("✅ Health check сервер должен быть запущен")
+    
+    # Проверяем, что сервер запустился
+    try:
+        import requests
+        response = requests.get(f"http://localhost:{port}/health", timeout=2)
+        print(f"✅ Health check работает: {response.status_code}")
+    except Exception as e:
+        print(f"⚠️ Health check не отвечает: {e}")
+        print("🔄 Пробуем альтернативный порт...")
+        try:
+            response = requests.get(f"http://localhost:8080/health", timeout=2)
+            print(f"✅ Health check работает на порту 8080: {response.status_code}")
+        except Exception as e2:
+            print(f"❌ Health check не работает ни на одном порту: {e2}")
     
     # Используем run_polling() вместо await
     application.run_polling()
