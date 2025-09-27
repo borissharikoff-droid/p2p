@@ -9,6 +9,7 @@ import asyncio
 import time
 import os
 import uuid
+from typing import Optional
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, InlineQueryResultArticle, InputTextMessageContent
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, InlineQueryHandler, MessageHandler, ContextTypes, filters
 from bestchange_parser import BestChangeParser
@@ -63,6 +64,7 @@ class TrustedCurrencyRateBot:
         self.waiting_wallet_add: dict[int, bool] = {}
         self.waiting_wallet_rename: dict[int, int] = {}
         self.waiting_wallet_readdress: dict[int, int] = {}
+        self.application = None  # Будет установлено в main()
     
     def get_current_rate(self):
         """Получить текущий курс USDT"""
@@ -138,6 +140,7 @@ class TrustedCurrencyRateBot:
             keyboard = [
                 [InlineKeyboardButton("💲 Получить курс", callback_data="get_rate")],
                 [InlineKeyboardButton("📈 Список лучших курсов", callback_data="get_rates_list")],
+                [InlineKeyboardButton("📊 Отслеживание курса", callback_data="tracking_menu")],
                 [InlineKeyboardButton("💼 USDT кошелек", callback_data="wallets_menu")],
                 [InlineKeyboardButton("🆘 Поддержка", url="https://t.me/doxpublisher")]
             ]
@@ -171,6 +174,8 @@ class TrustedCurrencyRateBot:
                 await self.handle_get_rates_list(query, user, start_time)
             elif query.data == "wallets_menu":
                 await self.handle_wallets_menu(query, user, start_time)
+            elif query.data == "tracking_menu":
+                await self.handle_tracking_menu(query, user, start_time)
             elif query.data.startswith("wallet_view_"):
                 wallet_id = int(query.data.split("_")[-1])
                 await self.handle_wallet_view(query, user, wallet_id)
@@ -193,6 +198,8 @@ class TrustedCurrencyRateBot:
                 await self.handle_wallets_menu(query, user, start_time)
             elif query.data == "back_to_menu":
                 await self.handle_back_to_menu(query, user, start_time)
+            elif query.data.startswith("tracking_"):
+                await self.handle_tracking_callback(query, user, start_time)
                 
         except Exception as e:
             logger.error(f"Ошибка в button_callback: {e}")
@@ -563,6 +570,7 @@ class TrustedCurrencyRateBot:
             keyboard = [
                 [InlineKeyboardButton("💲 Получить курс", callback_data="get_rate")],
                 [InlineKeyboardButton("📈 Список лучших курсов", callback_data="get_rates_list")],
+                [InlineKeyboardButton("📊 Отслеживание курса", callback_data="tracking_menu")],
                 [InlineKeyboardButton("💼 USDT кошелек", callback_data="wallets_menu")],
                 [InlineKeyboardButton("🆘 Поддержка", url="https://t.me/doxpublisher")]
             ]
@@ -577,6 +585,379 @@ class TrustedCurrencyRateBot:
         except Exception as e:
             logger.error(f"Ошибка в handle_back_to_menu: {e}")
             await query.edit_message_text("❌ Произошла ошибка. Попробуйте позже.")
+    
+    async def handle_tracking_menu(self, query, user, start_time):
+        """Обработчик кнопки 'Отслеживание курса'"""
+        try:
+            # Получаем настройки отслеживания пользователя
+            tracking_settings = self.db.get_tracking_settings(user.id)
+            
+            message = "📊 <b>Отслеживание курса</b>\n\n"
+            message += "Выберите криптовалюты для отслеживания и получайте уведомления об изменении их цены.\n\n"
+            message += "<b>Как это работает:</b>\n"
+            message += "• Выберите криптовалюты для отслеживания\n"
+            message += "• Установите порог изменения цены (например, 5%)\n"
+            message += "• Получайте уведомления при достижении порога\n\n"
+            
+            if tracking_settings:
+                message += "<b>Ваши настройки:</b>\n"
+                for setting in tracking_settings:
+                    crypto = setting.get('crypto', 'USDT')
+                    threshold = setting.get('threshold', 5)
+                    is_active = setting.get('is_active', True)
+                    status = "✅ Активно" if is_active else "❌ Отключено"
+                    message += f"• {crypto}: {threshold}% {status}\n"
+                message += "\n"
+            
+            # Создаем клавиатуру
+            keyboard = [
+                [InlineKeyboardButton("🪙 Выбрать криптовалюты", callback_data="tracking_select_crypto")],
+                [InlineKeyboardButton("⚙️ Настройки порога", callback_data="tracking_set_threshold")],
+                [InlineKeyboardButton("📋 Мои отслеживания", callback_data="tracking_my_list")],
+                [InlineKeyboardButton("🔔 Включить/выключить", callback_data="tracking_toggle")],
+                [InlineKeyboardButton("🏠 Назад", callback_data="back_to_menu")]
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            
+            await query.edit_message_text(message, parse_mode='HTML', reply_markup=reply_markup)
+            
+            # Логируем команду
+            response_time = time.time() - start_time
+            self.db.log_command(user.id, 'tracking_menu', '', response_time)
+                
+        except Exception as e:
+            logger.error(f"Ошибка в handle_tracking_menu: {e}")
+            await query.edit_message_text("❌ Произошла ошибка. Попробуйте позже.")
+    
+    async def handle_tracking_callback(self, query, user, start_time):
+        """Обработчик callback'ов для отслеживания"""
+        try:
+            callback_data = query.data
+            
+            if callback_data == "tracking_select_crypto":
+                await self.handle_tracking_select_crypto(query, user, start_time)
+            elif callback_data == "tracking_set_threshold":
+                await self.handle_tracking_set_threshold(query, user, start_time)
+            elif callback_data == "tracking_my_list":
+                await self.handle_tracking_my_list(query, user, start_time)
+            elif callback_data == "tracking_toggle":
+                await self.handle_tracking_toggle(query, user, start_time)
+            elif callback_data.startswith("tracking_crypto_"):
+                crypto = callback_data.split("_")[-1]
+                await self.handle_tracking_crypto_toggle(query, user, crypto, start_time)
+            elif callback_data.startswith("tracking_threshold_"):
+                threshold = int(callback_data.split("_")[-1])
+                await self.handle_tracking_threshold_set(query, user, threshold, start_time)
+                
+        except Exception as e:
+            logger.error(f"Ошибка в handle_tracking_callback: {e}")
+            await query.edit_message_text("❌ Произошла ошибка. Попробуйте позже.")
+    
+    async def handle_tracking_select_crypto(self, query, user, start_time):
+        """Обработчик выбора криптовалют для отслеживания"""
+        try:
+            # Список популярных криптовалют
+            cryptos = [
+                ("BTC", "Bitcoin", "₿"),
+                ("ETH", "Ethereum", "Ξ"),
+                ("USDT", "Tether", "₮"),
+                ("BNB", "Binance Coin", "🟡"),
+                ("ADA", "Cardano", "🔵"),
+                ("SOL", "Solana", "🟣"),
+                ("XRP", "Ripple", "💧"),
+                ("DOT", "Polkadot", "🔴"),
+                ("DOGE", "Dogecoin", "🐕"),
+                ("MATIC", "Polygon", "🟣")
+            ]
+            
+            # Получаем текущие настройки пользователя
+            user_trackings = self.db.get_tracking_settings(user.id)
+            tracked_cryptos = {t['crypto'] for t in user_trackings if t.get('is_active', True)}
+            
+            message = "🪙 <b>Выбор криптовалют для отслеживания</b>\n\n"
+            message += "Выберите криптовалюты, за которыми хотите следить:\n\n"
+            
+            # Создаем кнопки для каждой криптовалюты
+            keyboard = []
+            for i in range(0, len(cryptos), 2):
+                row = []
+                for j in range(2):
+                    if i + j < len(cryptos):
+                        crypto, name, emoji = cryptos[i + j]
+                        is_tracked = crypto in tracked_cryptos
+                        button_text = f"{'✅' if is_tracked else '⬜'} {emoji} {crypto}"
+                        row.append(InlineKeyboardButton(button_text, callback_data=f"tracking_crypto_{crypto}"))
+                keyboard.append(row)
+            
+            keyboard.append([InlineKeyboardButton("🏠 Назад", callback_data="tracking_menu")])
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            
+            await query.edit_message_text(message, parse_mode='HTML', reply_markup=reply_markup)
+            
+        except Exception as e:
+            logger.error(f"Ошибка в handle_tracking_select_crypto: {e}")
+            await query.edit_message_text("❌ Произошла ошибка. Попробуйте позже.")
+    
+    async def handle_tracking_crypto_toggle(self, query, user, crypto, start_time):
+        """Обработчик включения/выключения отслеживания криптовалюты"""
+        try:
+            # Переключаем статус отслеживания
+            success = self.db.toggle_crypto_tracking(user.id, crypto)
+            
+            if success:
+                await query.answer(f"✅ Отслеживание {crypto} {'включено' if success else 'выключено'}")
+                # Обновляем меню
+                await self.handle_tracking_select_crypto(query, user, start_time)
+            else:
+                await query.answer("❌ Ошибка изменения настроек")
+                
+        except Exception as e:
+            logger.error(f"Ошибка в handle_tracking_crypto_toggle: {e}")
+            await query.answer("❌ Произошла ошибка")
+    
+    async def handle_tracking_set_threshold(self, query, user, start_time):
+        """Обработчик настройки порога изменения цены"""
+        try:
+            message = "⚙️ <b>Настройка порога изменения цены</b>\n\n"
+            message += "Выберите процент изменения цены, при котором вы хотите получать уведомления:\n\n"
+            message += "<b>Рекомендуемые значения:</b>\n"
+            message += "• 1% - для активной торговли\n"
+            message += "• 3% - для умеренного отслеживания\n"
+            message += "• 5% - для долгосрочного инвестирования\n"
+            message += "• 10% - для крупных изменений\n\n"
+            
+            # Создаем кнопки с разными порогами
+            keyboard = [
+                [InlineKeyboardButton("1%", callback_data="tracking_threshold_1"),
+                 InlineKeyboardButton("3%", callback_data="tracking_threshold_3")],
+                [InlineKeyboardButton("5%", callback_data="tracking_threshold_5"),
+                 InlineKeyboardButton("10%", callback_data="tracking_threshold_10")],
+                [InlineKeyboardButton("15%", callback_data="tracking_threshold_15"),
+                 InlineKeyboardButton("20%", callback_data="tracking_threshold_20")],
+                [InlineKeyboardButton("🏠 Назад", callback_data="tracking_menu")]
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            
+            await query.edit_message_text(message, parse_mode='HTML', reply_markup=reply_markup)
+            
+        except Exception as e:
+            logger.error(f"Ошибка в handle_tracking_set_threshold: {e}")
+            await query.edit_message_text("❌ Произошла ошибка. Попробуйте позже.")
+    
+    async def handle_tracking_threshold_set(self, query, user, threshold, start_time):
+        """Обработчик установки порога"""
+        try:
+            # Устанавливаем порог для всех активных отслеживаний пользователя
+            success = self.db.set_tracking_threshold(user.id, threshold)
+            
+            if success:
+                await query.answer(f"✅ Порог установлен: {threshold}%")
+                # Возвращаемся в главное меню отслеживания
+                await self.handle_tracking_menu(query, user, start_time)
+            else:
+                await query.answer("❌ Ошибка установки порога")
+                
+        except Exception as e:
+            logger.error(f"Ошибка в handle_tracking_threshold_set: {e}")
+            await query.answer("❌ Произошла ошибка")
+    
+    async def handle_tracking_my_list(self, query, user, start_time):
+        """Обработчик просмотра списка отслеживаний"""
+        try:
+            tracking_settings = self.db.get_tracking_settings(user.id)
+            
+            if not tracking_settings:
+                message = "📋 <b>Мои отслеживания</b>\n\n"
+                message += "У вас пока нет активных отслеживаний.\n\n"
+                message += "Нажмите 'Выбрать криптовалюты' чтобы начать отслеживание."
+                
+                keyboard = [[InlineKeyboardButton("🪙 Выбрать криптовалюты", callback_data="tracking_select_crypto")],
+                           [InlineKeyboardButton("🏠 Назад", callback_data="tracking_menu")]]
+            else:
+                message = "📋 <b>Мои отслеживания</b>\n\n"
+                for i, setting in enumerate(tracking_settings, 1):
+                    crypto = setting.get('crypto', 'USDT')
+                    threshold = setting.get('threshold', 5)
+                    is_active = setting.get('is_active', True)
+                    status = "✅" if is_active else "❌"
+                    message += f"{i}. {status} {crypto} - порог {threshold}%\n"
+                
+                message += "\n<b>Управление:</b>\n"
+                message += "• Нажмите на криптовалюту для включения/выключения\n"
+                message += "• Измените порог в настройках"
+                
+                # Создаем кнопки для каждой криптовалюты
+                keyboard = []
+                for setting in tracking_settings:
+                    crypto = setting.get('crypto', 'USDT')
+                    is_active = setting.get('is_active', True)
+                    button_text = f"{'✅' if is_active else '❌'} {crypto}"
+                    keyboard.append([InlineKeyboardButton(button_text, callback_data=f"tracking_crypto_{crypto}")])
+                
+                keyboard.append([InlineKeyboardButton("🏠 Назад", callback_data="tracking_menu")])
+            
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            await query.edit_message_text(message, parse_mode='HTML', reply_markup=reply_markup)
+            
+        except Exception as e:
+            logger.error(f"Ошибка в handle_tracking_my_list: {e}")
+            await query.edit_message_text("❌ Произошла ошибка. Попробуйте позже.")
+    
+    async def handle_tracking_toggle(self, query, user, start_time):
+        """Обработчик включения/выключения всех отслеживаний"""
+        try:
+            # Переключаем все отслеживания пользователя
+            success = self.db.toggle_all_tracking(user.id)
+            
+            if success:
+                await query.answer("✅ Все отслеживания переключены")
+                # Обновляем меню
+                await self.handle_tracking_menu(query, user, start_time)
+            else:
+                await query.answer("❌ Ошибка переключения отслеживаний")
+                
+        except Exception as e:
+            logger.error(f"Ошибка в handle_tracking_toggle: {e}")
+            await query.answer("❌ Произошла ошибка")
+    
+    async def send_price_notification(self, user_id: int, crypto: str, current_price: float, 
+                                    previous_price: float, change_percent: float, threshold: float):
+        """Отправить уведомление об изменении цены"""
+        try:
+            # Определяем направление изменения
+            if change_percent > 0:
+                direction = "📈 Рост"
+                emoji = "🟢"
+            else:
+                direction = "📉 Падение"
+                emoji = "🔴"
+            
+            # Формируем сообщение
+            message = f"{emoji} <b>Уведомление о цене {crypto}</b>\n\n"
+            message += f"💰 Текущая цена: ${current_price:,.2f}\n"
+            message += f"📊 Изменение: {change_percent:+.2f}%\n"
+            message += f"🎯 Порог: {threshold}%\n"
+            message += f"⏰ {get_moscow_time().strftime('%H:%M • %d.%m.%Y')}\n\n"
+            message += f"<i>{direction} на {abs(change_percent):.2f}% превысило ваш порог в {threshold}%</i>"
+            
+            # Отправляем уведомление
+            await self.application.bot.send_message(
+                chat_id=user_id,
+                text=message,
+                parse_mode='HTML'
+            )
+            
+            # Обновляем время последнего уведомления
+            self.db.update_tracking_notification(user_id, crypto)
+            
+            logger.info(f"Отправлено уведомление пользователю {user_id} о {crypto}: {change_percent:+.2f}%")
+            
+        except Exception as e:
+            logger.error(f"Ошибка отправки уведомления: {e}")
+    
+    async def check_price_alerts(self):
+        """Проверить все активные отслеживания и отправить уведомления"""
+        try:
+            # Получаем все активные отслеживания
+            active_trackings = self.db.get_active_trackings()
+            
+            if not active_trackings:
+                return
+            
+            # Группируем по криптовалютам для оптимизации запросов
+            cryptos_to_check = list(set(tracking['crypto'] for tracking in active_trackings))
+            
+            for crypto in cryptos_to_check:
+                # Получаем текущую цену (здесь можно интегрировать с API)
+                current_price = await self.get_crypto_price(crypto)
+                
+                if not current_price:
+                    continue
+                
+                # Находим все отслеживания для этой криптовалюты
+                crypto_trackings = [t for t in active_trackings if t['crypto'] == crypto]
+                
+                for tracking in crypto_trackings:
+                    user_id = tracking['user_id']
+                    threshold = tracking['threshold']
+                    last_price = tracking['last_price']
+                    last_notification = tracking['last_notification']
+                    
+                    # Если это первая цена или цена изменилась
+                    if last_price is None:
+                        # Сохраняем первую цену
+                        self.db.update_tracking_price(user_id, crypto, current_price)
+                        continue
+                    
+                    # Вычисляем изменение в процентах
+                    change_percent = ((current_price - last_price) / last_price) * 100
+                    
+                    # Проверяем, превышен ли порог
+                    if abs(change_percent) >= threshold:
+                        # Проверяем, не отправляли ли уведомление недавно (защита от спама)
+                        if self.should_send_notification(last_notification):
+                            await self.send_price_notification(
+                                user_id, crypto, current_price, last_price, change_percent, threshold
+                            )
+                    
+                    # Обновляем последнюю цену
+                    self.db.update_tracking_price(user_id, crypto, current_price)
+                    
+        except Exception as e:
+            logger.error(f"Ошибка проверки уведомлений: {e}")
+    
+    def should_send_notification(self, last_notification: str) -> bool:
+        """Проверить, можно ли отправлять уведомление (защита от спама)"""
+        if not last_notification:
+            return True
+        
+        try:
+            from datetime import datetime, timedelta
+            last_time = datetime.fromisoformat(last_notification.replace('Z', '+00:00'))
+            now = datetime.now()
+            
+            # Не отправляем уведомления чаще чем раз в 30 минут
+            return (now - last_time).total_seconds() > 1800
+            
+        except Exception:
+            return True
+    
+    async def get_crypto_price(self, crypto: str) -> Optional[float]:
+        """Получить текущую цену криптовалюты (заглушка для демонстрации)"""
+        try:
+            # Здесь должна быть интеграция с реальным API (например, CoinGecko, Binance)
+            # Для демонстрации возвращаем случайную цену
+            
+            import random
+            
+            # Базовые цены для демонстрации
+            base_prices = {
+                'BTC': 45000,
+                'ETH': 3000,
+                'USDT': 1.0,
+                'BNB': 300,
+                'ADA': 0.5,
+                'SOL': 100,
+                'XRP': 0.6,
+                'DOT': 7,
+                'DOGE': 0.08,
+                'MATIC': 0.8
+            }
+            
+            base_price = base_prices.get(crypto, 100)
+            
+            # Добавляем случайное изменение ±5%
+            change = random.uniform(-0.05, 0.05)
+            current_price = base_price * (1 + change)
+            
+            # Сохраняем цену в историю
+            self.db.add_crypto_price(crypto, current_price)
+            
+            return current_price
+            
+        except Exception as e:
+            logger.error(f"Ошибка получения цены {crypto}: {e}")
+            return None
     
     async def inline_query_handler(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Обработчик inline запросов"""
@@ -1381,6 +1762,9 @@ def main():
     # Создаем приложение
     application = Application.builder().token(BOT_TOKEN).build()
     
+    # Устанавливаем ссылку на application в боте
+    bot.application = application
+    
     # Добавляем обработчики команд
     application.add_handler(CommandHandler("start", bot.start_command))
     application.add_handler(CommandHandler("help", bot.help_command))
@@ -1406,8 +1790,16 @@ def main():
             first=60  # Первый запуск через минуту
         )
         print("✅ Задача очистки запланирована")
+        
+        # Запускаем задачу проверки цен для уведомлений
+        application.job_queue.run_repeating(
+            lambda context: asyncio.create_task(bot.check_price_alerts()),
+            interval=300,  # Каждые 5 минут
+            first=120  # Первый запуск через 2 минуты
+        )
+        print("✅ Задача проверки цен запланирована")
     else:
-        print("⚠️ JobQueue недоступен, задача очистки не запланирована")
+        print("⚠️ JobQueue недоступен, задачи не запланированы")
     
     # Запускаем бота
     print("🤖 Запуск Trusted Currency Rate бота...")

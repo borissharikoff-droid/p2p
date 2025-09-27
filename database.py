@@ -115,6 +115,38 @@ class DatabaseManager:
                     )
                 ''')
                 
+                # Таблица отслеживания курсов криптовалют
+                cursor.execute('''
+                    CREATE TABLE IF NOT EXISTS crypto_tracking (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        user_id INTEGER NOT NULL,
+                        crypto TEXT NOT NULL,
+                        threshold REAL DEFAULT 5.0,
+                        is_active BOOLEAN DEFAULT 1,
+                        last_price REAL,
+                        last_notification TIMESTAMP,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        FOREIGN KEY (user_id) REFERENCES users (user_id),
+                        UNIQUE(user_id, crypto)
+                    )
+                ''')
+                
+                # Таблица истории цен криптовалют
+                cursor.execute('''
+                    CREATE TABLE IF NOT EXISTS crypto_price_history (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        crypto TEXT NOT NULL,
+                        price REAL NOT NULL,
+                        price_usd REAL,
+                        price_rub REAL,
+                        change_24h REAL,
+                        volume_24h REAL,
+                        market_cap REAL,
+                        timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                ''')
+                
                 # Миграция: добавляем новые колонки если их нет
                 try:
                     cursor.execute('ALTER TABLE users ADD COLUMN last_rate_request TIMESTAMP DEFAULT CURRENT_TIMESTAMP')
@@ -141,6 +173,10 @@ class DatabaseManager:
                     cursor.execute('CREATE INDEX IF NOT EXISTS idx_users_rate_request ON users(last_rate_request)')
                     cursor.execute('CREATE INDEX IF NOT EXISTS idx_exchange_requests_timestamp ON exchange_requests(request_timestamp)')
                     cursor.execute('CREATE INDEX IF NOT EXISTS idx_exchange_requests_user ON exchange_requests(user_id)')
+                    cursor.execute('CREATE INDEX IF NOT EXISTS idx_crypto_tracking_user ON crypto_tracking(user_id)')
+                    cursor.execute('CREATE INDEX IF NOT EXISTS idx_crypto_tracking_active ON crypto_tracking(is_active)')
+                    cursor.execute('CREATE INDEX IF NOT EXISTS idx_crypto_price_history_crypto ON crypto_price_history(crypto)')
+                    cursor.execute('CREATE INDEX IF NOT EXISTS idx_crypto_price_history_timestamp ON crypto_price_history(timestamp)')
                 except sqlite3.OperationalError as e:
                     logger.warning(f"Не удалось создать некоторые индексы: {e}")
                 
@@ -569,4 +605,227 @@ class DatabaseManager:
                 return cursor.rowcount > 0
         except Exception as e:
             logger.error(f"Ошибка удаления кошелька: {e}")
+            return False
+
+    # ------------------- CRYPTO TRACKING METHODS -------------------
+    
+    def get_tracking_settings(self, user_id: int) -> List[Dict]:
+        """Получить настройки отслеживания пользователя"""
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute('''
+                    SELECT crypto, threshold, is_active, last_price, last_notification
+                    FROM crypto_tracking
+                    WHERE user_id = ?
+                    ORDER BY created_at DESC
+                ''', (user_id,))
+                rows = cursor.fetchall()
+                return [
+                    {
+                        'crypto': row[0],
+                        'threshold': row[1],
+                        'is_active': bool(row[2]),
+                        'last_price': row[3],
+                        'last_notification': row[4]
+                    }
+                    for row in rows
+                ]
+        except Exception as e:
+            logger.error(f"Ошибка получения настроек отслеживания: {e}")
+            return []
+    
+    def toggle_crypto_tracking(self, user_id: int, crypto: str) -> bool:
+        """Переключить отслеживание криптовалюты"""
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                
+                # Проверяем, существует ли запись
+                cursor.execute('''
+                    SELECT is_active FROM crypto_tracking
+                    WHERE user_id = ? AND crypto = ?
+                ''', (user_id, crypto))
+                
+                result = cursor.fetchone()
+                
+                if result:
+                    # Переключаем существующую запись
+                    new_status = not bool(result[0])
+                    cursor.execute('''
+                        UPDATE crypto_tracking
+                        SET is_active = ?, updated_at = CURRENT_TIMESTAMP
+                        WHERE user_id = ? AND crypto = ?
+                    ''', (new_status, user_id, crypto))
+                else:
+                    # Создаем новую запись
+                    cursor.execute('''
+                        INSERT INTO crypto_tracking (user_id, crypto, is_active)
+                        VALUES (?, ?, 1)
+                    ''', (user_id, crypto))
+                    new_status = True
+                
+                conn.commit()
+                return new_status
+                
+        except Exception as e:
+            logger.error(f"Ошибка переключения отслеживания: {e}")
+            return False
+    
+    def set_tracking_threshold(self, user_id: int, threshold: float) -> bool:
+        """Установить порог для всех активных отслеживаний пользователя"""
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute('''
+                    UPDATE crypto_tracking
+                    SET threshold = ?, updated_at = CURRENT_TIMESTAMP
+                    WHERE user_id = ? AND is_active = 1
+                ''', (threshold, user_id))
+                conn.commit()
+                return cursor.rowcount > 0
+                
+        except Exception as e:
+            logger.error(f"Ошибка установки порога: {e}")
+            return False
+    
+    def toggle_all_tracking(self, user_id: int) -> bool:
+        """Переключить все отслеживания пользователя"""
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                
+                # Получаем текущий статус
+                cursor.execute('''
+                    SELECT COUNT(*) FROM crypto_tracking
+                    WHERE user_id = ? AND is_active = 1
+                ''', (user_id,))
+                
+                active_count = cursor.fetchone()[0]
+                
+                # Если есть активные - отключаем все, если нет - включаем все
+                new_status = active_count == 0
+                
+                cursor.execute('''
+                    UPDATE crypto_tracking
+                    SET is_active = ?, updated_at = CURRENT_TIMESTAMP
+                    WHERE user_id = ?
+                ''', (new_status, user_id))
+                
+                conn.commit()
+                return True
+                
+        except Exception as e:
+            logger.error(f"Ошибка переключения всех отслеживаний: {e}")
+            return False
+    
+    def add_crypto_price(self, crypto: str, price: float, price_usd: float = None, 
+                        price_rub: float = None, change_24h: float = None, 
+                        volume_24h: float = None, market_cap: float = None) -> bool:
+        """Добавить цену криптовалюты в историю"""
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute('''
+                    INSERT INTO crypto_price_history 
+                    (crypto, price, price_usd, price_rub, change_24h, volume_24h, market_cap)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                ''', (crypto, price, price_usd, price_rub, change_24h, volume_24h, market_cap))
+                conn.commit()
+                return True
+                
+        except Exception as e:
+            logger.error(f"Ошибка добавления цены криптовалюты: {e}")
+            return False
+    
+    def get_latest_crypto_price(self, crypto: str) -> Optional[Dict]:
+        """Получить последнюю цену криптовалюты"""
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute('''
+                    SELECT price, price_usd, price_rub, change_24h, volume_24h, market_cap, timestamp
+                    FROM crypto_price_history
+                    WHERE crypto = ?
+                    ORDER BY timestamp DESC
+                    LIMIT 1
+                ''', (crypto,))
+                
+                row = cursor.fetchone()
+                if row:
+                    return {
+                        'price': row[0],
+                        'price_usd': row[1],
+                        'price_rub': row[2],
+                        'change_24h': row[3],
+                        'volume_24h': row[4],
+                        'market_cap': row[5],
+                        'timestamp': row[6]
+                    }
+                return None
+                
+        except Exception as e:
+            logger.error(f"Ошибка получения цены криптовалюты: {e}")
+            return None
+    
+    def get_active_trackings(self) -> List[Dict]:
+        """Получить все активные отслеживания для проверки уведомлений"""
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute('''
+                    SELECT user_id, crypto, threshold, last_price, last_notification
+                    FROM crypto_tracking
+                    WHERE is_active = 1
+                    ORDER BY user_id, crypto
+                ''')
+                
+                rows = cursor.fetchall()
+                return [
+                    {
+                        'user_id': row[0],
+                        'crypto': row[1],
+                        'threshold': row[2],
+                        'last_price': row[3],
+                        'last_notification': row[4]
+                    }
+                    for row in rows
+                ]
+                
+        except Exception as e:
+            logger.error(f"Ошибка получения активных отслеживаний: {e}")
+            return []
+    
+    def update_tracking_price(self, user_id: int, crypto: str, price: float) -> bool:
+        """Обновить последнюю цену для отслеживания"""
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute('''
+                    UPDATE crypto_tracking
+                    SET last_price = ?, updated_at = CURRENT_TIMESTAMP
+                    WHERE user_id = ? AND crypto = ?
+                ''', (price, user_id, crypto))
+                conn.commit()
+                return cursor.rowcount > 0
+                
+        except Exception as e:
+            logger.error(f"Ошибка обновления цены отслеживания: {e}")
+            return False
+    
+    def update_tracking_notification(self, user_id: int, crypto: str) -> bool:
+        """Обновить время последнего уведомления"""
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute('''
+                    UPDATE crypto_tracking
+                    SET last_notification = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+                    WHERE user_id = ? AND crypto = ?
+                ''', (user_id, crypto))
+                conn.commit()
+                return cursor.rowcount > 0
+                
+        except Exception as e:
+            logger.error(f"Ошибка обновления времени уведомления: {e}")
             return False
