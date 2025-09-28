@@ -7,5 +7,6 @@
 from .rate_handler import RateHandler
 from .wallet_handler import WalletHandler
 from .inline_handler import InlineHandler
+from .crypto_tracking_handler import CryptoTrackingHandler
 
-__all__ = ['RateHandler', 'WalletHandler', 'InlineHandler']
+__all__ = ['RateHandler', 'WalletHandler', 'InlineHandler', 'CryptoTrackingHandler']

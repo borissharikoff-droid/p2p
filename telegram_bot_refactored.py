@@ -26,6 +26,7 @@ from config import bot_config, db_config, cache_config, server_config
 from database import DatabaseManager
 from cache_manager import CacheManager
 from handlers import RateHandler, WalletHandler, InlineHandler
+from handlers.crypto_tracking_handler import CryptoTrackingHandler
 from exceptions import BotError, BestChangeError, DatabaseError, CacheError, WalletError, ValidationError
 
 # Настройка логирования
@@ -54,6 +55,7 @@ class TrustedCurrencyRateBot:
         self.rate_handler = RateHandler(self.db, self.cache)
         self.wallet_handler = WalletHandler(self.db)
         self.inline_handler = InlineHandler(self.db, self.rate_handler)
+        self.crypto_tracking_handler = CryptoTrackingHandler(self.db)
         
         # Состояние бота
         self.application: Optional[Application] = None
@@ -124,7 +126,7 @@ class TrustedCurrencyRateBot:
             elif query.data == "wallets_menu":
                 await self.wallet_handler.handle_wallets_menu(update, context)
             elif query.data == "tracking_menu":
-                await self.handle_tracking_menu(update, context)
+                await self.crypto_tracking_handler.handle_tracking_menu(update, context)
             elif query.data.startswith("wallet_view_"):
                 wallet_id = int(query.data.split("_")[-1])
                 await self.wallet_handler.handle_wallet_view(update, context, wallet_id)
@@ -169,6 +171,11 @@ class TrustedCurrencyRateBot:
             # Проверяем, ожидает ли бот ввод кошелька
             if self.wallet_handler.is_waiting_wallet_input(user.id):
                 await self.wallet_handler.handle_wallet_add_message(update, context)
+                return
+            
+            # Проверяем, ожидает ли бот ввод порога для отслеживания
+            if self.crypto_tracking_handler.is_waiting_threshold_input(user.id):
+                await self.crypto_tracking_handler.handle_tracking_threshold_message(update, context)
                 return
             
             # Обработка других текстовых сообщений
@@ -306,21 +313,42 @@ class TrustedCurrencyRateBot:
             logger.error(f"Ошибка в handle_back_to_menu: {e}")
             await query.edit_message_text("❌ Произошла ошибка. Попробуйте позже.")
     
-    # Заглушки для функций отслеживания (можно реализовать позже)
-    async def handle_tracking_menu(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        """Обработчик кнопки 'Отслеживание курса'"""
-        query = update.callback_query
-        await query.edit_message_text(
-            "📊 <b>Отслеживание курса</b>\n\n"
-            "Функция находится в разработке.\n"
-            "Скоро здесь будет возможность отслеживать изменения курсов криптовалют.",
-            parse_mode='HTML'
-        )
+    # Удаляем заглушку, так как теперь есть полноценный обработчик
     
     async def handle_tracking_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Обработчик callback'ов для отслеживания"""
         query = update.callback_query
-        await query.answer("Функция в разработке")
+        user = update.effective_user
+        
+        try:
+            if query.data == "tracking_select_crypto":
+                await self.crypto_tracking_handler.handle_tracking_select_crypto(update, context)
+            elif query.data == "tracking_my_list":
+                await self.crypto_tracking_handler.handle_tracking_my_list(update, context)
+            elif query.data == "tracking_settings":
+                await query.answer("Настройки в разработке")
+            elif query.data.startswith("tracking_crypto_"):
+                crypto = query.data.split("_")[-1]
+                await self.crypto_tracking_handler.handle_tracking_crypto_toggle(update, context, crypto)
+            elif query.data.startswith("tracking_manage_"):
+                crypto = query.data.split("_")[-1]
+                await self.crypto_tracking_handler.handle_tracking_manage(update, context, crypto)
+            elif query.data.startswith("tracking_set_threshold_"):
+                crypto = query.data.split("_")[-1]
+                await self.crypto_tracking_handler.handle_tracking_set_threshold(update, context, crypto)
+            elif query.data.startswith("tracking_threshold_"):
+                parts = query.data.split("_")
+                crypto = parts[2]
+                threshold = float(parts[3])
+                await self.crypto_tracking_handler.handle_tracking_threshold_set(update, context, crypto, threshold)
+            elif query.data.startswith("tracking_toggle_"):
+                crypto = query.data.split("_")[-1]
+                await self.crypto_tracking_handler.handle_tracking_crypto_toggle(update, context, crypto)
+            else:
+                await query.answer("Неизвестная команда")
+        except Exception as e:
+            logger.error(f"Ошибка в handle_tracking_callback: {e}")
+            await query.answer("❌ Произошла ошибка")
     
     async def handle_wallet_rename_init(self, update: Update, context: ContextTypes.DEFAULT_TYPE, wallet_id: int) -> None:
         """Заглушка для переименования кошелька"""
@@ -457,6 +485,9 @@ def main() -> None:
     # Устанавливаем ссылку на application в боте
     bot.application = application
     
+    # Устанавливаем ссылку на application в обработчиках
+    bot.crypto_tracking_handler.application = application
+    
     # Добавляем обработчики команд
     application.add_handler(CommandHandler("start", bot.start_command))
     application.add_handler(CommandHandler("help", bot.help_command))
@@ -482,6 +513,14 @@ def main() -> None:
             first=60  # Первый запуск через минуту
         )
         print("✅ Задача очистки запланирована")
+        
+        # Запускаем задачу проверки цен для уведомлений
+        application.job_queue.run_repeating(
+            lambda context: asyncio.create_task(bot.crypto_tracking_handler.check_price_alerts()),
+            interval=bot_config.price_check_interval,
+            first=120  # Первый запуск через 2 минуты
+        )
+        print("✅ Задача проверки цен запланирована")
     else:
         print("⚠️ JobQueue недоступен, задачи не запланированы")
     
