@@ -183,11 +183,6 @@ class TrustedCurrencyRateBot:
         text = update.message.text.strip()
         
         try:
-            # Проверяем, ожидает ли бот ввод кошелька
-            if self.wallet_handler.is_waiting_wallet_input(user.id):
-                await self.wallet_handler.handle_wallet_add_message(update, context)
-                return
-            
             # Проверяем, ожидает ли бот переименование кошелька
             if user.id in self.wallet_handler.waiting_wallet_rename:
                 await self.handle_wallet_rename_message(update, context)
@@ -196,6 +191,11 @@ class TrustedCurrencyRateBot:
             # Проверяем, ожидает ли бот изменение адреса кошелька
             if user.id in self.wallet_handler.waiting_wallet_readdress:
                 await self.handle_wallet_readdress_message(update, context)
+                return
+            
+            # Проверяем, ожидает ли бот ввод нового кошелька
+            if user.id in self.wallet_handler.waiting_wallet_add:
+                await self.wallet_handler.handle_wallet_add_message(update, context)
                 return
             
             # Проверяем, ожидает ли бот ввод порога для отслеживания
