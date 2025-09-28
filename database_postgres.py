@@ -102,6 +102,30 @@ class DatabaseManager:
                     )
                 ''')
                 
+                # Создаем таблицу запросов курсов
+                cursor.execute('''
+                    CREATE TABLE IF NOT EXISTS exchange_requests (
+                        id SERIAL PRIMARY KEY,
+                        user_id BIGINT NOT NULL,
+                        request_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        avg_rate REAL,
+                        FOREIGN KEY (user_id) REFERENCES users (user_id)
+                    )
+                ''')
+                
+                # Создаем таблицу кошельков пользователя
+                cursor.execute('''
+                    CREATE TABLE IF NOT EXISTS user_wallets (
+                        id SERIAL PRIMARY KEY,
+                        user_id BIGINT NOT NULL,
+                        address TEXT NOT NULL,
+                        label TEXT,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        FOREIGN KEY (user_id) REFERENCES users (user_id)
+                    )
+                ''')
+                
                 # Создаем таблицу логов команд
                 cursor.execute('''
                     CREATE TABLE IF NOT EXISTS commands_log (
@@ -377,4 +401,179 @@ class DatabaseManager:
                 
         except Exception as e:
             logger.error(f"Ошибка обновления цены для {crypto}: {e}")
+            return False
+    
+    def can_user_request_rate(self, user_id: int, cooldown_seconds: int = 30) -> bool:
+        """Проверить, может ли пользователь запросить курс (rate limiting)"""
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                
+                cursor.execute('''
+                    SELECT last_rate_request FROM users 
+                    WHERE user_id = %s
+                ''', (user_id,))
+                
+                result = cursor.fetchone()
+                if not result:
+                    return True
+                
+                last_request = result[0]
+                if not last_request:
+                    return True
+                
+                # Проверяем, прошло ли достаточно времени
+                cursor.execute('''
+                    SELECT EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - %s))
+                ''', (last_request,))
+                
+                seconds_passed = cursor.fetchone()[0]
+                return seconds_passed >= cooldown_seconds
+                
+        except Exception as e:
+            logger.error(f"Ошибка проверки rate limiting: {e}")
+            return True  # В случае ошибки разрешаем запрос
+    
+    def cleanup_old_data(self, days_to_keep: int = 7):
+        """Очистка старых данных для экономии места"""
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                
+                # Удаляем старые записи запросов курсов
+                cursor.execute('''
+                    DELETE FROM exchange_requests 
+                    WHERE request_timestamp < CURRENT_TIMESTAMP - INTERVAL '%s days'
+                ''', (days_to_keep,))
+                
+                deleted_count = cursor.rowcount
+                conn.commit()
+                
+                if deleted_count > 0:
+                    logger.info(f"Удалено {deleted_count} старых записей запросов курсов")
+                
+                return deleted_count
+                
+        except Exception as e:
+            logger.error(f"Ошибка очистки старых данных: {e}")
+            return 0
+    
+    def log_exchange_request(self, user_id: int, exchange_data: Dict) -> bool:
+        """Записать запрос курса (оптимизированная версия)"""
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                
+                # Добавляем запись о запросе курса (только средний курс)
+                cursor.execute('''
+                    INSERT INTO exchange_requests 
+                    (user_id, avg_rate)
+                    VALUES (%s, %s)
+                ''', (user_id, exchange_data.get('avg_rate')))
+                
+                # Обновляем счетчик запросов и время последнего запроса
+                cursor.execute('''
+                    UPDATE users SET 
+                        total_commands = total_commands + 1,
+                        last_activity_date = CURRENT_TIMESTAMP,
+                        last_rate_request = CURRENT_TIMESTAMP
+                    WHERE user_id = %s
+                ''', (user_id,))
+                
+                conn.commit()
+                return True
+                
+        except Exception as e:
+            logger.error(f"Ошибка записи запроса курса: {e}")
+            return False
+    
+    # ------------------- WALLET CRUD -------------------
+    def add_wallet(self, user_id: int, address: str, label: Optional[str]) -> bool:
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute('''
+                    INSERT INTO user_wallets (user_id, address, label)
+                    VALUES (%s, %s, %s)
+                ''', (user_id, address, label))
+                conn.commit()
+                return True
+        except Exception as e:
+            logger.error(f"Ошибка добавления кошелька: {e}")
+            return False
+
+    def list_wallets(self, user_id: int) -> List[Dict]:
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+                cursor.execute('''
+                    SELECT id, address, COALESCE(label, '') as label
+                    FROM user_wallets
+                    WHERE user_id = %s
+                    ORDER BY created_at DESC
+                ''', (user_id,))
+                rows = cursor.fetchall()
+                return [dict(row) for row in rows]
+        except Exception as e:
+            logger.error(f"Ошибка получения списка кошельков: {e}")
+            return []
+
+    def update_wallet(self, user_id: int, wallet_id: int, new_address: Optional[str], new_label: Optional[str]) -> bool:
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                if new_address is not None and new_label is not None:
+                    cursor.execute('''
+                        UPDATE user_wallets
+                        SET address = %s, label = %s, updated_at = CURRENT_TIMESTAMP
+                        WHERE id = %s AND user_id = %s
+                    ''', (new_address, new_label, wallet_id, user_id))
+                elif new_address is not None:
+                    cursor.execute('''
+                        UPDATE user_wallets
+                        SET address = %s, updated_at = CURRENT_TIMESTAMP
+                        WHERE id = %s AND user_id = %s
+                    ''', (new_address, wallet_id, user_id))
+                elif new_label is not None:
+                    cursor.execute('''
+                        UPDATE user_wallets
+                        SET label = %s, updated_at = CURRENT_TIMESTAMP
+                        WHERE id = %s AND user_id = %s
+                    ''', (new_label, wallet_id, user_id))
+                else:
+                    return True
+                conn.commit()
+                return cursor.rowcount > 0
+        except Exception as e:
+            logger.error(f"Ошибка обновления кошелька: {e}")
+            return False
+
+    def get_wallet(self, user_id: int, wallet_id: int) -> Optional[Dict]:
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+                cursor.execute('''
+                    SELECT id, address, COALESCE(label, '') as label
+                    FROM user_wallets
+                    WHERE id = %s AND user_id = %s
+                ''', (wallet_id, user_id))
+                row = cursor.fetchone()
+                if row:
+                    return dict(row)
+                return None
+        except Exception as e:
+            logger.error(f"Ошибка получения кошелька: {e}")
+            return None
+
+    def delete_wallet(self, user_id: int, wallet_id: int) -> bool:
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute('''
+                    DELETE FROM user_wallets WHERE id = %s AND user_id = %s
+                ''', (wallet_id, user_id))
+                conn.commit()
+                return cursor.rowcount > 0
+        except Exception as e:
+            logger.error(f"Ошибка удаления кошелька: {e}")
             return False
