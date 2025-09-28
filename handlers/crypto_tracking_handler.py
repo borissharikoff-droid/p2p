@@ -321,25 +321,29 @@ class CryptoTrackingHandler:
                 await query.answer("❌ Отслеживание не найдено")
                 return
             
+            threshold = tracking['threshold']
+            
+            # Получаем информацию о криптовалюте
             if crypto in self.supported_cryptos:
                 info = self.supported_cryptos[crypto]
-                threshold = tracking['threshold']
-                last_price = tracking.get('last_price')
-                price_text = f"${last_price:,.2f}" if last_price else "—"
-                
-                message = f"⚙️ <b>Управление отслеживанием</b>\n\n"
-                message += f"<b>{crypto} ({info['name']})</b>\n"
-                message += f"🔔 Порог уведомлений: <b>{threshold}%</b>\n\n"
-                message += "Выберите действие:"
-                
-                keyboard = [
-                    [InlineKeyboardButton(f"📊 Изменить порог ({threshold}%)", callback_data=f"tracking_set_threshold_{crypto}")],
-                    [InlineKeyboardButton("❌ Отключить отслеживание", callback_data=f"tracking_toggle_{crypto}")],
-                    [InlineKeyboardButton("⬅️ Назад к списку", callback_data="tracking_my_list")]
-                ]
-                reply_markup = InlineKeyboardMarkup(keyboard)
-                
-                await query.edit_message_text(message, parse_mode='HTML', reply_markup=reply_markup)
+                crypto_name = info['name']
+            else:
+                # Для криптовалют из API создаем базовую информацию
+                crypto_name = crypto
+            
+            message = f"⚙️ <b>Управление отслеживанием</b>\n\n"
+            message += f"<b>{crypto} ({crypto_name})</b>\n"
+            message += f"🔔 Порог уведомлений: <b>{threshold}%</b>\n\n"
+            message += "Выберите действие:"
+            
+            keyboard = [
+                [InlineKeyboardButton(f"📊 Изменить порог ({threshold}%)", callback_data=f"tracking_set_threshold_{crypto}")],
+                [InlineKeyboardButton("❌ Отключить отслеживание", callback_data=f"tracking_toggle_{crypto}")],
+                [InlineKeyboardButton("⬅️ Назад к списку", callback_data="tracking_my_list")]
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            
+            await query.edit_message_text(message, parse_mode='HTML', reply_markup=reply_markup)
             
         except ValidationError as e:
             await query.answer(f"❌ {e}")
@@ -359,32 +363,37 @@ class CryptoTrackingHandler:
             # Валидируем символ криптовалюты
             crypto = validate_crypto_symbol(crypto)
             
+            # Получаем информацию о криптовалюте
             if crypto in self.supported_cryptos:
                 info = self.supported_cryptos[crypto]
-                
-                message = f"📊 <b>Установка порога для {crypto}</b>\n\n"
-                message += f"<b>{crypto} ({info['name']})</b>\n\n"
-                message += "Введите порог изменения цены в процентах:\n\n"
-                message += "<b>Примеры:</b>\n"
-                message += "• <code>1</code> - уведомления при изменении на 1%\n"
-                message += "• <code>2.5</code> - уведомления при изменении на 2.5%\n"
-                message += "• <code>5</code> - уведомления при изменении на 5%\n"
-                message += "• <code>10</code> - уведомления при изменении на 10%\n\n"
-                message += "Минимум: 1%, Максимум: 50%"
-                
-                keyboard = [
-                    [InlineKeyboardButton("1%", callback_data=f"tracking_threshold_{crypto}_1")],
-                    [InlineKeyboardButton("2.5%", callback_data=f"tracking_threshold_{crypto}_2.5")],
-                    [InlineKeyboardButton("5%", callback_data=f"tracking_threshold_{crypto}_5")],
-                    [InlineKeyboardButton("10%", callback_data=f"tracking_threshold_{crypto}_10")],
-                    [InlineKeyboardButton("⬅️ Назад", callback_data=f"tracking_manage_{crypto}")]
-                ]
-                reply_markup = InlineKeyboardMarkup(keyboard)
-                
-                await query.edit_message_text(message, parse_mode='HTML', reply_markup=reply_markup)
-                
-                # Устанавливаем ожидание ввода порога
-                self.waiting_threshold_input[user.id] = crypto
+                crypto_name = info['name']
+            else:
+                # Для криптовалют из API создаем базовую информацию
+                crypto_name = crypto
+            
+            message = f"📊 <b>Установка порога для {crypto}</b>\n\n"
+            message += f"<b>{crypto} ({crypto_name})</b>\n\n"
+            message += "Введите порог изменения цены в процентах:\n\n"
+            message += "<b>Примеры:</b>\n"
+            message += "• <code>1</code> - уведомления при изменении на 1%\n"
+            message += "• <code>2.5</code> - уведомления при изменении на 2.5%\n"
+            message += "• <code>5</code> - уведомления при изменении на 5%\n"
+            message += "• <code>10</code> - уведомления при изменении на 10%\n\n"
+            message += "Минимум: 1%, Максимум: 50%"
+            
+            keyboard = [
+                [InlineKeyboardButton("1%", callback_data=f"tracking_threshold_{crypto}_1")],
+                [InlineKeyboardButton("2.5%", callback_data=f"tracking_threshold_{crypto}_2.5")],
+                [InlineKeyboardButton("5%", callback_data=f"tracking_threshold_{crypto}_5")],
+                [InlineKeyboardButton("10%", callback_data=f"tracking_threshold_{crypto}_10")],
+                [InlineKeyboardButton("⬅️ Назад", callback_data=f"tracking_manage_{crypto}")]
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            
+            await query.edit_message_text(message, parse_mode='HTML', reply_markup=reply_markup)
+            
+            # Устанавливаем ожидание ввода порога
+            self.waiting_threshold_input[user.id] = crypto
             
         except ValidationError as e:
             await query.answer(f"❌ {e}")
