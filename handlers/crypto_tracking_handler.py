@@ -834,21 +834,31 @@ class CryptoTrackingHandler:
     async def check_price_alerts(self) -> None:
         """Проверить все активные отслеживания и отправить уведомления"""
         try:
+            logger.info("🔍 Начинаем проверку цен для уведомлений...")
+            
             # Получаем все активные отслеживания
             active_trackings = self.db.get_active_trackings()
             
             if not active_trackings:
+                logger.info("📭 Нет активных отслеживаний")
                 return
+            
+            logger.info(f"📊 Найдено {len(active_trackings)} активных отслеживаний")
             
             # Группируем по криптовалютам для оптимизации запросов
             cryptos_to_check = list(set(tracking['crypto'] for tracking in active_trackings))
             
             for crypto in cryptos_to_check:
+                logger.info(f"💰 Проверяем цену для {crypto}...")
+                
                 # Получаем текущую цену
                 current_price = await get_crypto_price(crypto)
                 
                 if not current_price:
+                    logger.warning(f"❌ Не удалось получить цену для {crypto}")
                     continue
+                
+                logger.info(f"✅ {crypto}: ${current_price:,.2f}")
                 
                 # Находим все отслеживания для этой криптовалюты
                 crypto_trackings = [t for t in active_trackings if t['crypto'] == crypto]
@@ -859,22 +869,33 @@ class CryptoTrackingHandler:
                     last_price = tracking['last_price']
                     last_notification = tracking['last_notification']
                     
+                    logger.info(f"👤 Пользователь {user_id}: {crypto}, порог {threshold}%, последняя цена: {last_price}")
+                    
                     # Если это первая цена или цена изменилась
                     if last_price is None:
+                        logger.info(f"🆕 Первая цена для {crypto}: ${current_price:,.2f}")
                         # Сохраняем первую цену
                         self.db.update_tracking_price(user_id, crypto, current_price)
                         continue
                     
                     # Вычисляем изменение в процентах
                     change_percent = ((current_price - last_price) / last_price) * 100
+                    logger.info(f"📈 {crypto}: изменение {change_percent:+.2f}% (порог: {threshold}%)")
                     
                     # Проверяем, превышен ли порог
                     if abs(change_percent) >= threshold:
+                        logger.info(f"🚨 Порог превышен! {crypto}: {change_percent:+.2f}% >= {threshold}%")
+                        
                         # Проверяем, не отправляли ли уведомление недавно (защита от спама)
                         if self.should_send_notification(last_notification):
+                            logger.info(f"📤 Отправляем уведомление пользователю {user_id}")
                             await self.send_price_notification(
                                 user_id, crypto, current_price, last_price, change_percent, threshold
                             )
+                        else:
+                            logger.info(f"⏰ Уведомление недавно отправлялось, пропускаем")
+                    else:
+                        logger.info(f"✅ Изменение {change_percent:+.2f}% меньше порога {threshold}%")
                     
                     # Обновляем последнюю цену
                     self.db.update_tracking_price(user_id, crypto, current_price)

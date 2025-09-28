@@ -527,8 +527,14 @@ def main() -> None:
         print("✅ Задача очистки запланирована")
         
         # Запускаем задачу проверки цен для уведомлений
+        async def check_prices_job(context):
+            try:
+                await bot.crypto_tracking_handler.check_price_alerts()
+            except Exception as e:
+                logger.error(f"Ошибка в задаче проверки цен: {e}")
+        
         application.job_queue.run_repeating(
-            lambda context: asyncio.create_task(bot.crypto_tracking_handler.check_price_alerts()),
+            check_prices_job,
             interval=bot_config.price_check_interval,
             first=120  # Первый запуск через 2 минуты
         )
