@@ -178,6 +178,11 @@ class TrustedCurrencyRateBot:
                 await self.crypto_tracking_handler.handle_tracking_threshold_message(update, context)
                 return
             
+            # Проверяем, ожидает ли бот поисковый запрос
+            if self.crypto_tracking_handler.is_waiting_search_input(user.id):
+                await self.crypto_tracking_handler.handle_tracking_search_message(update, context)
+                return
+            
             # Обработка других текстовых сообщений
             await update.message.reply_text(
                 "💡 Используйте кнопки меню или команды для взаимодействия с ботом.\n"
@@ -344,6 +349,13 @@ class TrustedCurrencyRateBot:
             elif query.data.startswith("tracking_toggle_"):
                 crypto = query.data.split("_")[-1]
                 await self.crypto_tracking_handler.handle_tracking_crypto_toggle(update, context, crypto)
+            elif query.data.startswith("tracking_category_"):
+                category = query.data.split("_")[-1]
+                await self.crypto_tracking_handler.handle_tracking_category(update, context, category)
+            elif query.data == "tracking_search":
+                await self.crypto_tracking_handler.handle_tracking_search(update, context)
+            elif query.data == "tracking_all":
+                await self.crypto_tracking_handler.handle_tracking_all(update, context)
             else:
                 await query.answer("Неизвестная команда")
         except Exception as e:

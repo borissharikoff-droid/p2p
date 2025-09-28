@@ -36,22 +36,71 @@ class CryptoTrackingHandler:
         self.db = db
         self.waiting_threshold_input: Dict[int, str] = {}  # user_id -> crypto
         
-        # Список поддерживаемых криптовалют с эмодзи
+        # Расширенный список поддерживаемых криптовалют
         self.supported_cryptos = {
-            'BTC': {'name': 'Bitcoin', 'emoji': '₿', 'color': '🟠'},
-            'ETH': {'name': 'Ethereum', 'emoji': 'Ξ', 'color': '🔵'},
-            'USDT': {'name': 'Tether', 'emoji': '₮', 'color': '🟢'},
-            'BNB': {'name': 'Binance Coin', 'emoji': '🟡', 'color': '🟡'},
-            'ADA': {'name': 'Cardano', 'emoji': '🔵', 'color': '🔵'},
-            'SOL': {'name': 'Solana', 'emoji': '🟣', 'color': '🟣'},
-            'XRP': {'name': 'Ripple', 'emoji': '💧', 'color': '💧'},
-            'DOT': {'name': 'Polkadot', 'emoji': '🔴', 'color': '🔴'},
-            'DOGE': {'name': 'Dogecoin', 'emoji': '🐕', 'color': '🐕'},
-            'MATIC': {'name': 'Polygon', 'emoji': '🟣', 'color': '🟣'},
-            'LTC': {'name': 'Litecoin', 'emoji': '⚡', 'color': '⚡'},
-            'BCH': {'name': 'Bitcoin Cash', 'emoji': '💰', 'color': '💰'},
-            'LINK': {'name': 'Chainlink', 'emoji': '🔗', 'color': '🔗'},
-            'UNI': {'name': 'Uniswap', 'emoji': '🦄', 'color': '🦄'}
+            # Топ-8 популярных (быстрый доступ)
+            'BTC': {'name': 'Bitcoin', 'emoji': '₿', 'color': '🟠', 'category': 'top'},
+            'ETH': {'name': 'Ethereum', 'emoji': 'Ξ', 'color': '🔵', 'category': 'top'},
+            'BNB': {'name': 'Binance Coin', 'emoji': '🟡', 'color': '🟡', 'category': 'top'},
+            'SOL': {'name': 'Solana', 'emoji': '🟣', 'color': '🟣', 'category': 'top'},
+            'ADA': {'name': 'Cardano', 'emoji': '🔵', 'color': '🔵', 'category': 'top'},
+            'XRP': {'name': 'Ripple', 'emoji': '💧', 'color': '💧', 'category': 'top'},
+            'DOT': {'name': 'Polkadot', 'emoji': '🔴', 'color': '🔴', 'category': 'top'},
+            'DOGE': {'name': 'Dogecoin', 'emoji': '🐕', 'color': '🐕', 'category': 'top'},
+            
+            # DeFi токены
+            'USDT': {'name': 'Tether', 'emoji': '₮', 'color': '🟢', 'category': 'defi'},
+            'USDC': {'name': 'USD Coin', 'emoji': '💵', 'color': '💵', 'category': 'defi'},
+            'DAI': {'name': 'Dai', 'emoji': '🟡', 'color': '🟡', 'category': 'defi'},
+            'UNI': {'name': 'Uniswap', 'emoji': '🦄', 'color': '🦄', 'category': 'defi'},
+            'LINK': {'name': 'Chainlink', 'emoji': '🔗', 'color': '🔗', 'category': 'defi'},
+            'AAVE': {'name': 'Aave', 'emoji': '🦅', 'color': '🦅', 'category': 'defi'},
+            'COMP': {'name': 'Compound', 'emoji': '🏦', 'color': '🏦', 'category': 'defi'},
+            'SUSHI': {'name': 'SushiSwap', 'emoji': '🍣', 'color': '🍣', 'category': 'defi'},
+            
+            # Layer 1 блокчейны
+            'MATIC': {'name': 'Polygon', 'emoji': '🟣', 'color': '🟣', 'category': 'layer1'},
+            'AVAX': {'name': 'Avalanche', 'emoji': '❄️', 'color': '❄️', 'category': 'layer1'},
+            'FTM': {'name': 'Fantom', 'emoji': '👻', 'color': '👻', 'category': 'layer1'},
+            'NEAR': {'name': 'NEAR Protocol', 'emoji': '🌐', 'color': '🌐', 'category': 'layer1'},
+            'ALGO': {'name': 'Algorand', 'emoji': '🔷', 'color': '🔷', 'category': 'layer1'},
+            'ATOM': {'name': 'Cosmos', 'emoji': '🌌', 'color': '🌌', 'category': 'layer1'},
+            
+            # GameFi и NFT
+            'AXS': {'name': 'Axie Infinity', 'emoji': '🎮', 'color': '🎮', 'category': 'gamefi'},
+            'SAND': {'name': 'The Sandbox', 'emoji': '🏖️', 'color': '🏖️', 'category': 'gamefi'},
+            'MANA': {'name': 'Decentraland', 'emoji': '🌍', 'color': '🌍', 'category': 'gamefi'},
+            'ENJ': {'name': 'Enjin Coin', 'emoji': '💎', 'color': '💎', 'category': 'gamefi'},
+            
+            # Мем-коины
+            'SHIB': {'name': 'Shiba Inu', 'emoji': '🐕', 'color': '🐕', 'category': 'meme'},
+            'PEPE': {'name': 'Pepe', 'emoji': '🐸', 'color': '🐸', 'category': 'meme'},
+            'FLOKI': {'name': 'Floki', 'emoji': '🐕', 'color': '🐕', 'category': 'meme'},
+            
+            # Другие популярные
+            'LTC': {'name': 'Litecoin', 'emoji': '⚡', 'color': '⚡', 'category': 'other'},
+            'BCH': {'name': 'Bitcoin Cash', 'emoji': '💰', 'color': '💰', 'category': 'other'},
+            'XLM': {'name': 'Stellar', 'emoji': '⭐', 'color': '⭐', 'category': 'other'},
+            'VET': {'name': 'VeChain', 'emoji': '🔗', 'color': '🔗', 'category': 'other'},
+            'FIL': {'name': 'Filecoin', 'emoji': '📁', 'color': '📁', 'category': 'other'},
+            'ICP': {'name': 'Internet Computer', 'emoji': '🌐', 'color': '🌐', 'category': 'other'},
+            'TRX': {'name': 'TRON', 'emoji': '🔴', 'color': '🔴', 'category': 'other'},
+            'ETC': {'name': 'Ethereum Classic', 'emoji': '💎', 'color': '💎', 'category': 'other'},
+            'XMR': {'name': 'Monero', 'emoji': '🔒', 'color': '🔒', 'category': 'other'},
+            'ZEC': {'name': 'Zcash', 'emoji': '🛡️', 'color': '🛡️', 'category': 'other'}
+        }
+        
+        # Топ-8 для быстрого доступа
+        self.top_cryptos = ['BTC', 'ETH', 'BNB', 'SOL', 'ADA', 'XRP', 'DOT', 'DOGE']
+        
+        # Категории
+        self.categories = {
+            'top': '🔥 Топ-8',
+            'defi': '💎 DeFi',
+            'layer1': '🏛️ Layer 1',
+            'gamefi': '🎮 GameFi',
+            'meme': '🦄 Meme',
+            'other': '📊 Другие'
         }
     
     async def handle_tracking_menu(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -109,22 +158,39 @@ class CryptoTrackingHandler:
             tracked_cryptos = {t['crypto'] for t in user_trackings if t.get('is_active', True)}
             
             message = "🪙 <b>Выбор криптовалют для отслеживания</b>\n\n"
-            message += "Выберите криптовалюты, за которыми хотите следить:\n\n"
+            message += f"📊 Доступно: <b>{len(self.supported_cryptos)}</b> криптовалют\n"
+            message += f"🔔 Отслеживается: <b>{len(tracked_cryptos)}</b>\n\n"
+            message += "<b>🔥 Топ-8 (быстрый выбор):</b>\n"
             
-            # Создаем кнопки для каждой криптовалюты
+            # Создаем кнопки для топ-8 криптовалют
             keyboard = []
-            for i in range(0, len(self.supported_cryptos), 2):
+            for i in range(0, len(self.top_cryptos), 2):
                 row = []
-                cryptos_list = list(self.supported_cryptos.items())
                 for j in range(2):
-                    if i + j < len(cryptos_list):
-                        crypto, info = cryptos_list[i + j]
-                        is_tracked = crypto in tracked_cryptos
-                        button_text = f"{'✅' if is_tracked else '⬜'} {info['emoji']} {crypto}"
-                        row.append(InlineKeyboardButton(button_text, callback_data=f"tracking_crypto_{crypto}"))
+                    if i + j < len(self.top_cryptos):
+                        crypto = self.top_cryptos[i + j]
+                        if crypto in self.supported_cryptos:
+                            info = self.supported_cryptos[crypto]
+                            is_tracked = crypto in tracked_cryptos
+                            button_text = f"{'✅' if is_tracked else '⬜'} {info['emoji']} {crypto}"
+                            row.append(InlineKeyboardButton(button_text, callback_data=f"tracking_crypto_{crypto}"))
                 keyboard.append(row)
             
+            # Добавляем кнопки категорий и поиска
+            keyboard.append([
+                InlineKeyboardButton("💎 DeFi", callback_data="tracking_category_defi"),
+                InlineKeyboardButton("🏛️ Layer 1", callback_data="tracking_category_layer1")
+            ])
+            keyboard.append([
+                InlineKeyboardButton("🎮 GameFi", callback_data="tracking_category_gamefi"),
+                InlineKeyboardButton("🦄 Meme", callback_data="tracking_category_meme")
+            ])
+            keyboard.append([
+                InlineKeyboardButton("🔍 Поиск", callback_data="tracking_search"),
+                InlineKeyboardButton("📋 Все", callback_data="tracking_all")
+            ])
             keyboard.append([InlineKeyboardButton("🏠 Назад", callback_data="tracking_menu")])
+            
             reply_markup = InlineKeyboardMarkup(keyboard)
             
             await query.edit_message_text(message, parse_mode='HTML', reply_markup=reply_markup)
@@ -413,6 +479,221 @@ class CryptoTrackingHandler:
     def is_waiting_threshold_input(self, user_id: int) -> bool:
         """Проверить, ожидает ли бот ввод порога от пользователя"""
         return user_id in self.waiting_threshold_input
+    
+    async def handle_tracking_category(self, update: Update, context: ContextTypes.DEFAULT_TYPE, category: str) -> None:
+        """Обработчик показа криптовалют по категории"""
+        query = update.callback_query
+        user = update.effective_user
+        
+        try:
+            # Получаем текущие настройки пользователя
+            user_trackings = self.db.get_tracking_settings(user.id)
+            tracked_cryptos = {t['crypto'] for t in user_trackings if t.get('is_active', True)}
+            
+            # Фильтруем криптовалюты по категории
+            category_cryptos = [
+                (crypto, info) for crypto, info in self.supported_cryptos.items()
+                if info['category'] == category
+            ]
+            
+            if not category_cryptos:
+                await query.answer("В этой категории пока нет криптовалют")
+                return
+            
+            category_name = self.categories.get(category, category)
+            message = f"🪙 <b>{category_name}</b>\n\n"
+            message += f"Выберите криптовалюты для отслеживания:\n\n"
+            
+            # Создаем кнопки для криптовалют категории
+            keyboard = []
+            for i in range(0, len(category_cryptos), 2):
+                row = []
+                for j in range(2):
+                    if i + j < len(category_cryptos):
+                        crypto, info = category_cryptos[i + j]
+                        is_tracked = crypto in tracked_cryptos
+                        button_text = f"{'✅' if is_tracked else '⬜'} {info['emoji']} {crypto}"
+                        row.append(InlineKeyboardButton(button_text, callback_data=f"tracking_crypto_{crypto}"))
+                keyboard.append(row)
+            
+            keyboard.append([InlineKeyboardButton("⬅️ Назад к выбору", callback_data="tracking_select_crypto")])
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            
+            await query.edit_message_text(message, parse_mode='HTML', reply_markup=reply_markup)
+            
+        except Exception as e:
+            logger.error(f"Ошибка в handle_tracking_category: {e}")
+            await query.answer("❌ Произошла ошибка")
+    
+    async def handle_tracking_search(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Обработчик поиска криптовалют"""
+        query = update.callback_query
+        user = update.effective_user
+        
+        try:
+            message = "🔍 <b>Поиск криптовалют</b>\n\n"
+            message += "Введите символ или название криптовалюты:\n\n"
+            message += "<b>Примеры:</b>\n"
+            message += "• <code>BTC</code> - Bitcoin\n"
+            message += "• <code>ETH</code> - Ethereum\n"
+            message += "• <code>SOL</code> - Solana\n"
+            message += "• <code>Bitcoin</code> - Bitcoin\n\n"
+            message += "Или выберите из популярных:"
+            
+            # Показываем несколько популярных для быстрого выбора
+            keyboard = []
+            popular = ['BTC', 'ETH', 'SOL', 'ADA', 'XRP', 'DOT', 'DOGE', 'MATIC']
+            for i in range(0, len(popular), 2):
+                row = []
+                for j in range(2):
+                    if i + j < len(popular):
+                        crypto = popular[i + j]
+                        if crypto in self.supported_cryptos:
+                            info = self.supported_cryptos[crypto]
+                            row.append(InlineKeyboardButton(f"{info['emoji']} {crypto}", callback_data=f"tracking_crypto_{crypto}"))
+                keyboard.append(row)
+            
+            keyboard.append([InlineKeyboardButton("⬅️ Назад к выбору", callback_data="tracking_select_crypto")])
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            
+            await query.edit_message_text(message, parse_mode='HTML', reply_markup=reply_markup)
+            
+            # Устанавливаем ожидание поискового запроса
+            self.waiting_search_input = getattr(self, 'waiting_search_input', set())
+            self.waiting_search_input.add(user.id)
+            
+        except Exception as e:
+            logger.error(f"Ошибка в handle_tracking_search: {e}")
+            await query.answer("❌ Произошла ошибка")
+    
+    async def handle_tracking_all(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Обработчик показа всех криптовалют"""
+        query = update.callback_query
+        user = update.effective_user
+        
+        try:
+            # Получаем текущие настройки пользователя
+            user_trackings = self.db.get_tracking_settings(user.id)
+            tracked_cryptos = {t['crypto'] for t in user_trackings if t.get('is_active', True)}
+            
+            message = "📋 <b>Все криптовалюты</b>\n\n"
+            message += f"📊 Всего: <b>{len(self.supported_cryptos)}</b> криптовалют\n"
+            message += f"🔔 Отслеживается: <b>{len(tracked_cryptos)}</b>\n\n"
+            message += "Выберите криптовалюты для отслеживания:\n\n"
+            
+            # Создаем кнопки для всех криптовалют (по 2 в ряд)
+            keyboard = []
+            cryptos_list = list(self.supported_cryptos.items())
+            
+            for i in range(0, len(cryptos_list), 2):
+                row = []
+                for j in range(2):
+                    if i + j < len(cryptos_list):
+                        crypto, info = cryptos_list[i + j]
+                        is_tracked = crypto in tracked_cryptos
+                        button_text = f"{'✅' if is_tracked else '⬜'} {info['emoji']} {crypto}"
+                        row.append(InlineKeyboardButton(button_text, callback_data=f"tracking_crypto_{crypto}"))
+                keyboard.append(row)
+            
+            keyboard.append([InlineKeyboardButton("⬅️ Назад к выбору", callback_data="tracking_select_crypto")])
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            
+            await query.edit_message_text(message, parse_mode='HTML', reply_markup=reply_markup)
+            
+        except Exception as e:
+            logger.error(f"Ошибка в handle_tracking_all: {e}")
+            await query.answer("❌ Произошла ошибка")
+    
+    async def handle_tracking_search_message(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Обработчик текстового поиска криптовалют"""
+        if not update.message or not update.effective_user:
+            return
+        
+        user = update.effective_user
+        text = update.message.text.strip().upper()
+        
+        try:
+            # Проверяем, ожидает ли бот поисковый запрос
+            if not hasattr(self, 'waiting_search_input') or user.id not in self.waiting_search_input:
+                return
+            
+            # Убираем из ожидания
+            self.waiting_search_input.discard(user.id)
+            
+            # Ищем криптовалюту
+            found_cryptos = []
+            
+            # Поиск по символу
+            if text in self.supported_cryptos:
+                found_cryptos.append((text, self.supported_cryptos[text]))
+            else:
+                # Поиск по названию
+                for crypto, info in self.supported_cryptos.items():
+                    if text in info['name'].upper():
+                        found_cryptos.append((crypto, info))
+            
+            if not found_cryptos:
+                await update.message.reply_text(
+                    f"❌ Криптовалюта '{text}' не найдена.\n\n"
+                    "Попробуйте:\n"
+                    "• BTC, ETH, SOL, ADA\n"
+                    "• Bitcoin, Ethereum, Solana\n"
+                    "• Или выберите из категорий"
+                )
+                return
+            
+            # Получаем текущие настройки пользователя
+            user_trackings = self.db.get_tracking_settings(user.id)
+            tracked_cryptos = {t['crypto'] for t in user_trackings if t.get('is_active', True)}
+            
+            if len(found_cryptos) == 1:
+                # Одна найденная криптовалюта - сразу предлагаем добавить
+                crypto, info = found_cryptos[0]
+                is_tracked = crypto in tracked_cryptos
+                
+                if is_tracked:
+                    message = f"✅ <b>{crypto} уже отслеживается</b>\n\n"
+                    message += f"{info['emoji']} <b>{crypto} ({info['name']})</b>\n"
+                    message += "Выберите действие:"
+                    
+                    keyboard = [
+                        [InlineKeyboardButton("⚙️ Управление", callback_data=f"tracking_manage_{crypto}")],
+                        [InlineKeyboardButton("🔍 Поиск еще", callback_data="tracking_search")]
+                    ]
+                else:
+                    message = f"🎯 <b>Найдена криптовалюта</b>\n\n"
+                    message += f"{info['emoji']} <b>{crypto} ({info['name']})</b>\n\n"
+                    message += "Добавить в отслеживание?"
+                    
+                    keyboard = [
+                        [InlineKeyboardButton("✅ Добавить", callback_data=f"tracking_crypto_{crypto}")],
+                        [InlineKeyboardButton("🔍 Поиск еще", callback_data="tracking_search")]
+                    ]
+                
+                reply_markup = InlineKeyboardMarkup(keyboard)
+                await update.message.reply_text(message, parse_mode='HTML', reply_markup=reply_markup)
+            else:
+                # Несколько найденных - показываем список
+                message = f"🔍 <b>Найдено {len(found_cryptos)} криптовалют:</b>\n\n"
+                
+                keyboard = []
+                for crypto, info in found_cryptos[:10]:  # Ограничиваем до 10
+                    is_tracked = crypto in tracked_cryptos
+                    button_text = f"{'✅' if is_tracked else '⬜'} {info['emoji']} {crypto}"
+                    keyboard.append([InlineKeyboardButton(button_text, callback_data=f"tracking_crypto_{crypto}")])
+                
+                keyboard.append([InlineKeyboardButton("🔍 Поиск еще", callback_data="tracking_search")])
+                reply_markup = InlineKeyboardMarkup(keyboard)
+                
+                await update.message.reply_text(message, parse_mode='HTML', reply_markup=reply_markup)
+                
+        except Exception as e:
+            logger.error(f"Ошибка в handle_tracking_search_message: {e}")
+            await update.message.reply_text("❌ Произошла ошибка при поиске. Попробуйте еще раз.")
+    
+    def is_waiting_search_input(self, user_id: int) -> bool:
+        """Проверить, ожидает ли бот поисковый запрос от пользователя"""
+        return hasattr(self, 'waiting_search_input') and user_id in self.waiting_search_input
     
     async def send_price_notification(self, user_id: int, crypto: str, current_price: float, 
                                     previous_price: float, change_percent: float, threshold: float) -> None:

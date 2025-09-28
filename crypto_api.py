@@ -24,20 +24,56 @@ class CryptoAPI:
         
         # Поддерживаемые криптовалюты и их ID в CoinGecko
         self.crypto_ids = {
+            # Топ-8
             'BTC': 'bitcoin',
             'ETH': 'ethereum',
-            'USDT': 'tether',
             'BNB': 'binancecoin',
-            'ADA': 'cardano',
             'SOL': 'solana',
+            'ADA': 'cardano',
             'XRP': 'ripple',
             'DOT': 'polkadot',
             'DOGE': 'dogecoin',
+            
+            # DeFi
+            'USDT': 'tether',
+            'USDC': 'usd-coin',
+            'DAI': 'dai',
+            'UNI': 'uniswap',
+            'LINK': 'chainlink',
+            'AAVE': 'aave',
+            'COMP': 'compound-governance-token',
+            'SUSHI': 'sushi',
+            
+            # Layer 1
             'MATIC': 'matic-network',
+            'AVAX': 'avalanche-2',
+            'FTM': 'fantom',
+            'NEAR': 'near',
+            'ALGO': 'algorand',
+            'ATOM': 'cosmos',
+            
+            # GameFi
+            'AXS': 'axie-infinity',
+            'SAND': 'the-sandbox',
+            'MANA': 'decentraland',
+            'ENJ': 'enjincoin',
+            
+            # Meme
+            'SHIB': 'shiba-inu',
+            'PEPE': 'pepe',
+            'FLOKI': 'floki',
+            
+            # Другие
             'LTC': 'litecoin',
             'BCH': 'bitcoin-cash',
-            'LINK': 'chainlink',
-            'UNI': 'uniswap'
+            'XLM': 'stellar',
+            'VET': 'vechain',
+            'FIL': 'filecoin',
+            'ICP': 'internet-computer',
+            'TRX': 'tron',
+            'ETC': 'ethereum-classic',
+            'XMR': 'monero',
+            'ZEC': 'zcash'
         }
     
     async def __aenter__(self):
