@@ -783,15 +783,15 @@ class CryptoTrackingHandler:
             message = f"{color}${crypto}: {current_price:,.2f} ({change_symbol}{change_percent:.2f}%)\n"
             message += f"📊 Порог: {threshold}% • {info['name']}"
             
-                # Отправляем уведомление
-                if self.application:
-                    await self.application.bot.send_message(
-                        chat_id=user_id,
-                        text=message,
-                        parse_mode='HTML'
-                    )
-                
-                logger.info(f"Отправлено уведомление пользователю {user_id}: {crypto} {change_percent:.2f}%")
+            # Отправляем уведомление
+            if self.application:
+                await self.application.bot.send_message(
+                    chat_id=user_id,
+                    text=message,
+                    parse_mode='HTML'
+                )
+            
+            logger.info(f"Отправлено уведомление пользователю {user_id}: {crypto} {change_percent:.2f}%")
             
         except Exception as e:
             logger.error(f"Ошибка отправки уведомления: {e}")
