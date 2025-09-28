@@ -329,14 +329,21 @@ class TrustedCurrencyRateBot:
     async def debug_tracking_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Обработчик команды /debug_tracking - отладка отслеживания"""
         user = update.effective_user
+        logger.info(f"🔍 Получена команда /debug_tracking от пользователя {user.id}")
         
         try:
             # Получаем все отслеживания пользователя
+            logger.info(f"📊 Получаем отслеживания для пользователя {user.id}")
             user_trackings = self.db.get_tracking_settings(user.id)
+            logger.info(f"📊 Получено отслеживаний: {len(user_trackings)}")
+            
             active_trackings = [t for t in user_trackings if t.get('is_active', False)]
+            logger.info(f"✅ Активных отслеживаний: {len(active_trackings)}")
             
             # Получаем все активные отслеживания из БД
+            logger.info("🌍 Получаем все активные отслеживания из БД")
             all_active = self.db.get_active_trackings()
+            logger.info(f"🌍 Всего активных в БД: {len(all_active)}")
             
             debug_message = f"🔍 <b>ОТЛАДКА ОТСЛЕЖИВАНИЯ</b>\n\n"
             debug_message += f"👤 Пользователь: {user.id}\n"
@@ -359,9 +366,11 @@ class TrustedCurrencyRateBot:
             await update.message.reply_text(debug_message, parse_mode='HTML')
             
             # Запускаем проверку цен
+            logger.info("🚀 Запускаем принудительную проверку цен")
             await self.crypto_tracking_handler.check_price_alerts()
             
             await update.message.reply_text("✅ Проверка цен завершена! Смотрите логи Railway.")
+            logger.info("✅ Команда /debug_tracking выполнена успешно")
             
         except Exception as e:
             logger.error(f"Ошибка в debug_tracking_command: {e}")
