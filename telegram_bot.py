@@ -584,13 +584,16 @@ class TrustedCurrencyRateBot:
             if not wallet_id:
                 return
             
-            # Валидируем новое название
-            from validators import validate_wallet_label
-            try:
-                new_label = validate_wallet_label(text)
-            except Exception as e:
-                await update.message.reply_text(f"❌ {e}")
+            # Простая валидация названия
+            if not text or len(text.strip()) == 0:
+                await update.message.reply_text("❌ Название не может быть пустым")
                 return
+            
+            if len(text) > 50:
+                await update.message.reply_text("❌ Название слишком длинное (максимум 50 символов)")
+                return
+            
+            new_label = text.strip()
             
             # Обновляем название кошелька
             success = self.db.update_wallet(user.id, wallet_id, None, new_label)
