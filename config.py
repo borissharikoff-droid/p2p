@@ -31,9 +31,7 @@ class BotConfig:
         if not token:
             print("⚠️ BOT_TOKEN не найден в переменных окружения!")
             print("⚠️ Установите переменную BOT_TOKEN в Railway")
-            # Fallback токен для разработки
-            token = "8441060447:AAHmRDWx-6ezerQOgBnzSPYGBRUXpamcXFg"
-            print("⚠️ Используется токен по умолчанию для тестирования")
+            raise ValueError("BOT_TOKEN не установлен! Установите переменную окружения BOT_TOKEN")
         
         return cls(
             token=token,

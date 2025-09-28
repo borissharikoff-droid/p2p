@@ -51,7 +51,7 @@ cp env.template .env
 
 5. Заполните переменные в `.env`:
 ```env
-BOT_TOKEN=8441060447:AAHmRDWx-6ezerQOgBnzSPYGBRUXpamcXFg
+BOT_TOKEN=your_bot_token_here
 CACHE_DURATION=60
 RATE_LIMIT_COOLDOWN=30
 PORT=8080
@@ -81,7 +81,7 @@ python telegram_bot.py
 В панели Railway добавьте переменные:
 
 ```
-BOT_TOKEN=8441060447:AAHmRDWx-6ezerQOgBnzSPYGBRUXpamcXFg
+BOT_TOKEN=your_bot_token_here
 CACHE_DURATION=60
 RATE_LIMIT_COOLDOWN=30
 PORT=8080
@@ -141,7 +141,7 @@ Railway автоматически:
 
 | Переменная | Описание | По умолчанию |
 |------------|----------|--------------|
-| `BOT_TOKEN` | Токен Telegram бота | 8441060447:AAHmRDWx-6ezerQOgBnzSPYGBRUXpamcXFg |
+| `BOT_TOKEN` | Токен Telegram бота | your_bot_token_here |
 | `CACHE_DURATION` | Время кэширования (сек) | 60 |
 | `RATE_LIMIT_COOLDOWN` | Ограничение запросов (сек) | 30 |
 | `PORT` | Порт для health check | 8000 |

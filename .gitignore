@@ -1,21 +1,21 @@
-# Environment variables
+# Переменные окружения
 .env
 .env.local
 .env.production
 .env.staging
 
-# Database files
+# Базы данных
 *.db
 *.sqlite
 *.sqlite3
 bot_database.db
 
-# Cache files
+# Кэш
 cache/
 *.cache
-rates_cache.json
+*.tmp
 
-# Logs
+# Логи
 *.log
 logs/
 
@@ -40,48 +40,34 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
-MANIFEST
 
 # Virtual environments
 venv/
 env/
 ENV/
-env.bak/
-venv.bak/
 
 # IDE
 .vscode/
 .idea/
 *.swp
 *.swo
-*~
 
 # OS
 .DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
 Thumbs.db
 
 # Railway
 .railway/
 
-# Temporary files
-*.tmp
-*.temp
+# Секретные файлы
+secrets/
+keys/
+tokens/
+*.key
+*.pem
+
+# Временные файлы
 temp/
 tmp/
-
-# Excel exports
-*.xlsx
-*.xls
-
-# JSON data files
-bestchange_rates_*.json
-
-# Secrets and keys
-secrets.json
-config.json
-keys.json
+*.tmp
+*.temp

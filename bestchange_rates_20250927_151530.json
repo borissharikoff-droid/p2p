@@ -1,0 +1,354 @@
+[
+  {
+    "exchanger_name": "Rexexio",
+    "rate": 84.7,
+    "reserve": 50000000,
+    "reviews_count": 1095,
+    "exchanger_link": "https://www.bestchange.com/click.php?id=1284&from=10&to=91&city=1",
+    "parsed_at": "2025-09-27T15:15:30.360321"
+  },
+  {
+    "exchanger_name": "AvanChange",
+    "rate": 84.0551,
+    "reserve": 62297204,
+    "reviews_count": 1032,
+    "exchanger_link": "https://www.bestchange.com/click.php?id=1013&from=10&to=91&city=1",
+    "parsed_at": "2025-09-27T15:15:30.360321"
+  },
+  {
+    "exchanger_name": "YaObmen",
+    "rate": 84.16,
+    "reserve": 240336226,
+    "reviews_count": 698,
+    "exchanger_link": "https://www.bestchange.com/click.php?id=1095&from=10&to=91&city=1",
+    "parsed_at": "2025-09-27T15:15:30.360321"
+  },
+  {
+    "exchanger_name": "City-Exchange",
+    "rate": 84.7004,
+    "reserve": 200000000,
+    "reviews_count": 305,
+    "exchanger_link": "https://www.bestchange.com/click.php?id=382&from=10&to=91&city=1",
+    "parsed_at": "2025-09-27T15:15:30.360321"
+  },
+  {
+    "exchanger_name": "PoTeme",
+    "rate": 81.4418,
+    "reserve": 99630960,
+    "reviews_count": 301,
+    "exchanger_link": "https://www.bestchange.com/click.php?id=1139&from=10&to=91&city=1",
+    "parsed_at": "2025-09-27T15:15:30.362319"
+  },
+  {
+    "exchanger_name": "ProstovCash",
+    "rate": 83.0297,
+    "reserve": 423775000,
+    "reviews_count": 243,
+    "exchanger_link": "https://www.bestchange.com/click.php?id=622&from=10&to=91&city=1",
+    "parsed_at": "2025-09-27T15:15:30.361320"
+  },
+  {
+    "exchanger_name": "JetMonet",
+    "rate": 83.94,
+    "reserve": 45315661,
+    "reviews_count": 222,
+    "exchanger_link": "https://www.bestchange.com/click.php?id=881&from=10&to=91&city=1",
+    "parsed_at": "2025-09-27T15:15:30.361320"
+  },
+  {
+    "exchanger_name": "YChanger",
+    "rate": 83.2751,
+    "reserve": 101390809,
+    "reviews_count": 212,
+    "exchanger_link": "https://www.bestchange.com/click.php?id=633&from=10&to=91&city=1",
+    "parsed_at": "2025-09-27T15:15:30.361320"
+  },
+  {
+    "exchanger_name": "CoinBlinker",
+    "rate": 83.5629,
+    "reserve": 110632623,
+    "reviews_count": 209,
+    "exchanger_link": "https://www.bestchange.com/click.php?id=1074&from=10&to=91&city=1",
+    "parsed_at": "2025-09-27T15:15:30.361320"
+  },
+  {
+    "exchanger_name": "FlyMoney",
+    "rate": 84.5102,
+    "reserve": 96147115,
+    "reviews_count": 204,
+    "exchanger_link": "https://www.bestchange.com/click.php?id=788&from=10&to=91&city=1",
+    "parsed_at": "2025-09-27T15:15:30.360321"
+  },
+  {
+    "exchanger_name": "PremierCash",
+    "rate": 83.69,
+    "reserve": 122536453,
+    "reviews_count": 175,
+    "exchanger_link": "https://www.bestchange.com/click.php?id=975&from=10&to=91&city=1",
+    "parsed_at": "2025-09-27T15:15:30.361320"
+  },
+  {
+    "exchanger_name": "BaksMan",
+    "rate": 83.6139,
+    "reserve": 122394645,
+    "reviews_count": 169,
+    "exchanger_link": "https://www.bestchange.com/click.php?id=517&from=10&to=91&city=1",
+    "parsed_at": "2025-09-27T15:15:30.361320"
+  },
+  {
+    "exchanger_name": "24PayBank",
+    "rate": 83.9303,
+    "reserve": 423775000,
+    "reviews_count": 163,
+    "exchanger_link": "https://www.bestchange.com/click.php?id=417&from=10&to=91&city=1",
+    "parsed_at": "2025-09-27T15:15:30.361320"
+  },
+  {
+    "exchanger_name": "YoChange",
+    "rate": 84.0465,
+    "reserve": 100000000,
+    "reviews_count": 146,
+    "exchanger_link": "https://www.bestchange.com/click.php?id=840&from=10&to=91&city=1",
+    "parsed_at": "2025-09-27T15:15:30.361320"
+  },
+  {
+    "exchanger_name": "60sek",
+    "rate": 83.5344,
+    "reserve": 134727259,
+    "reviews_count": 134,
+    "exchanger_link": "https://www.bestchange.com/click.php?id=607&from=10&to=91&city=1",
+    "parsed_at": "2025-09-27T15:15:30.361320"
+  },
+  {
+    "exchanger_name": "NicexChanger",
+    "rate": 82.6265,
+    "reserve": 60835373,
+    "reviews_count": 125,
+    "exchanger_link": "https://www.bestchange.com/click.php?id=764&from=10&to=91&city=1",
+    "parsed_at": "2025-09-27T15:15:30.361320"
+  },
+  {
+    "exchanger_name": "Xchange",
+    "rate": 83.1598,
+    "reserve": 423775000,
+    "reviews_count": 121,
+    "exchanger_link": "https://www.bestchange.com/click.php?id=184&from=10&to=91&city=1",
+    "parsed_at": "2025-09-27T15:15:30.361320"
+  },
+  {
+    "exchanger_name": "AbcObmen",
+    "rate": 83.3694,
+    "reserve": 8132550,
+    "reviews_count": 120,
+    "exchanger_link": "https://www.bestchange.com/click.php?id=948&from=10&to=91&city=1",
+    "parsed_at": "2025-09-27T15:15:30.361320"
+  },
+  {
+    "exchanger_name": "NewLine",
+    "rate": 84.7003,
+    "reserve": 250000000,
+    "reviews_count": 110,
+    "exchanger_link": "https://www.bestchange.com/click.php?id=539&from=10&to=91&city=1",
+    "parsed_at": "2025-09-27T15:15:30.360321"
+  },
+  {
+    "exchanger_name": "1-Online",
+    "rate": 84.7002,
+    "reserve": 75000000,
+    "reviews_count": 101,
+    "exchanger_link": "https://www.bestchange.com/click.php?id=659&from=10&to=91&city=1",
+    "parsed_at": "2025-09-27T15:15:30.360321"
+  },
+  {
+    "exchanger_name": "Bankcomat",
+    "rate": 82.281,
+    "reserve": 512281522,
+    "reviews_count": 91,
+    "exchanger_link": "https://www.bestchange.com/click.php?id=544&from=10&to=91&city=1",
+    "parsed_at": "2025-09-27T15:15:30.361320"
+  },
+  {
+    "exchanger_name": "MChanger",
+    "rate": 81.8571,
+    "reserve": 68000000,
+    "reviews_count": 87,
+    "exchanger_link": "https://www.bestchange.com/click.php?id=279&from=10&to=91&city=1",
+    "parsed_at": "2025-09-27T15:15:30.361320"
+  },
+  {
+    "exchanger_name": "CoinsBlack",
+    "rate": 83.9124,
+    "reserve": 66789644,
+    "reviews_count": 64,
+    "exchanger_link": "https://www.bestchange.com/click.php?id=989&from=10&to=91&city=1",
+    "parsed_at": "2025-09-27T15:15:30.361320"
+  },
+  {
+    "exchanger_name": "LetsChange",
+    "rate": 84.0419,
+    "reserve": 534600868,
+    "reviews_count": 61,
+    "exchanger_link": "https://www.bestchange.com/click.php?id=1144&from=10&to=91&city=1",
+    "parsed_at": "2025-09-27T15:15:30.361320"
+  },
+  {
+    "exchanger_name": "ChBy",
+    "rate": 83.4241,
+    "reserve": 311765704,
+    "reviews_count": 43,
+    "exchanger_link": "https://www.bestchange.com/click.php?id=471&from=10&to=91&city=1",
+    "parsed_at": "2025-09-27T15:15:30.361320"
+  },
+  {
+    "exchanger_name": "Finex24",
+    "rate": 84.1566,
+    "reserve": 1000000000,
+    "reviews_count": 41,
+    "exchanger_link": "https://www.bestchange.com/click.php?id=1055&from=10&to=91&city=1",
+    "parsed_at": "2025-09-27T15:15:30.360321"
+  },
+  {
+    "exchanger_name": "BuhtaObmena",
+    "rate": 83.7725,
+    "reserve": 50000000,
+    "reviews_count": 40,
+    "exchanger_link": "https://www.bestchange.com/click.php?id=1149&from=10&to=91&city=1",
+    "parsed_at": "2025-09-27T15:15:30.361320"
+  },
+  {
+    "exchanger_name": "More-Ex",
+    "rate": 84.3347,
+    "reserve": 55588300,
+    "reviews_count": 36,
+    "exchanger_link": "https://www.bestchange.com/click.php?id=1337&from=10&to=91&city=1",
+    "parsed_at": "2025-09-27T15:15:30.360321"
+  },
+  {
+    "exchanger_name": "HASchange",
+    "rate": 82.63,
+    "reserve": 245000000,
+    "reviews_count": 36,
+    "exchanger_link": "https://www.bestchange.com/click.php?id=738&from=10&to=91&city=1",
+    "parsed_at": "2025-09-27T15:15:30.361320"
+  },
+  {
+    "exchanger_name": "JarvisExchange",
+    "rate": 80.8747,
+    "reserve": 405449114,
+    "reviews_count": 32,
+    "exchanger_link": "https://www.bestchange.com/click.php?id=1163&from=10&to=91&city=1",
+    "parsed_at": "2025-09-27T15:15:30.362319"
+  },
+  {
+    "exchanger_name": "ChangeProject",
+    "rate": 83.0942,
+    "reserve": 179799403,
+    "reviews_count": 25,
+    "exchanger_link": "https://www.bestchange.com/click.php?id=976&from=10&to=91&city=1",
+    "parsed_at": "2025-09-27T15:15:30.361320"
+  },
+  {
+    "exchanger_name": "CoolCoin",
+    "rate": 83.0968,
+    "reserve": 176659589,
+    "reviews_count": 23,
+    "exchanger_link": "https://www.bestchange.com/click.php?id=1100&from=10&to=91&city=1",
+    "parsed_at": "2025-09-27T15:15:30.361320"
+  },
+  {
+    "exchanger_name": "SpbWMCasher",
+    "rate": 83.9205,
+    "reserve": 90000000,
+    "reviews_count": 18,
+    "exchanger_link": "https://www.bestchange.com/click.php?id=447&from=10&to=91&city=1",
+    "parsed_at": "2025-09-27T15:15:30.361320"
+  },
+  {
+    "exchanger_name": "N-Obmen",
+    "rate": 84.0798,
+    "reserve": 231004726,
+    "reviews_count": 15,
+    "exchanger_link": "https://www.bestchange.com/click.php?id=364&from=10&to=91&city=1",
+    "parsed_at": "2025-09-27T15:15:30.360321"
+  },
+  {
+    "exchanger_name": "O-Paxum",
+    "rate": 81.5,
+    "reserve": 38218306,
+    "reviews_count": 15,
+    "exchanger_link": "https://www.bestchange.com/click.php?id=490&from=10&to=91&city=1",
+    "parsed_at": "2025-09-27T15:15:30.362319"
+  },
+  {
+    "exchanger_name": "Tasty-Changer",
+    "rate": 81.6606,
+    "reserve": 671978256,
+    "reviews_count": 9,
+    "exchanger_link": "https://www.bestchange.com/click.php?id=1320&from=10&to=91&city=1",
+    "parsed_at": "2025-09-27T15:15:30.362319"
+  },
+  {
+    "exchanger_name": "DoubleSwap",
+    "rate": 84.393,
+    "reserve": 104527437,
+    "reviews_count": 8,
+    "exchanger_link": "https://www.bestchange.com/click.php?id=1199&from=10&to=91&city=1",
+    "parsed_at": "2025-09-27T15:15:30.360321"
+  },
+  {
+    "exchanger_name": "GramBit",
+    "rate": 83.0942,
+    "reserve": 179886820,
+    "reviews_count": 7,
+    "exchanger_link": "https://www.bestchange.com/click.php?id=888&from=10&to=91&city=1",
+    "parsed_at": "2025-09-27T15:15:30.361320"
+  },
+  {
+    "exchanger_name": "24ExPay",
+    "rate": 82.6702,
+    "reserve": 165589946,
+    "reviews_count": 7,
+    "exchanger_link": "https://www.bestchange.com/click.php?id=752&from=10&to=91&city=1",
+    "parsed_at": "2025-09-27T15:15:30.361320"
+  },
+  {
+    "exchanger_name": "BTCDeal",
+    "rate": 84.5356,
+    "reserve": 571611523,
+    "reviews_count": 6,
+    "exchanger_link": "https://www.bestchange.com/click.php?id=1254&from=10&to=91&city=1",
+    "parsed_at": "2025-09-27T15:15:30.360321"
+  },
+  {
+    "exchanger_name": "InstaCrypt",
+    "rate": 84.2415,
+    "reserve": 185533542,
+    "reviews_count": 2,
+    "exchanger_link": "https://www.bestchange.com/click.php?id=1159&from=10&to=91&city=1",
+    "parsed_at": "2025-09-27T15:15:30.360321"
+  },
+  {
+    "exchanger_name": "GoldenGate",
+    "rate": 84.1347,
+    "reserve": 100000000,
+    "reviews_count": 2,
+    "exchanger_link": "https://www.bestchange.com/click.php?id=1352&from=10&to=91&city=1",
+    "parsed_at": "2025-09-27T15:15:30.360321"
+  },
+  {
+    "exchanger_name": "MultiKassa",
+    "rate": 83.6878,
+    "reserve": 15600000,
+    "reviews_count": 1,
+    "exchanger_link": "https://www.bestchange.com/click.php?id=1265&from=10&to=91&city=1",
+    "parsed_at": "2025-09-27T15:15:30.361320"
+  },
+  {
+    "exchanger_name": "Moscoin",
+    "rate": 84.3222,
+    "reserve": 73419339,
+    "reviews_count": 0,
+    "exchanger_link": "https://www.bestchange.com/click.php?id=1364&from=10&to=91&city=1",
+    "parsed_at": "2025-09-27T15:15:30.360321"
+  }
+]

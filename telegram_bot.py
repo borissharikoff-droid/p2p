@@ -44,11 +44,10 @@ def get_moscow_time():
 # Токен бота из переменных окружения
 BOT_TOKEN = os.getenv('BOT_TOKEN')
 if not BOT_TOKEN:
-    print("⚠️ BOT_TOKEN не найден в переменных окружения!")
-    print("⚠️ Установите переменную BOT_TOKEN в Railway")
-    # Временно используем токен по умолчанию для тестирования
-    BOT_TOKEN = "8441060447:AAHmRDWx-6ezerQOgBnzSPYGBRUXpamcXFg"
-    print("⚠️ Используется токен по умолчанию для тестирования")
+    print("❌ BOT_TOKEN не найден в переменных окружения!")
+    print("❌ Установите переменную BOT_TOKEN в Railway")
+    print("❌ Бот не может запуститься без токена!")
+    exit(1)
 
 
 class TrustedCurrencyRateBot:
