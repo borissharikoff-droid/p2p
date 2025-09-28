@@ -231,7 +231,7 @@ class CryptoTrackingHandler:
                 success = self.db.toggle_crypto_tracking(user.id, crypto)
                 if success:
                     # Устанавливаем порог по умолчанию 5%
-                    self.db.set_tracking_threshold(user.id, crypto, 5.0)
+                    self.db.set_crypto_threshold(user.id, crypto, 5.0)
                     await query.answer(f"✅ Отслеживание {crypto} включено (порог: 5%)")
                 else:
                     await query.answer("❌ Ошибка включения отслеживания")
@@ -406,7 +406,7 @@ class CryptoTrackingHandler:
             threshold = validate_threshold(threshold)
             
             # Устанавливаем порог
-            success = self.db.set_tracking_threshold(user.id, crypto, threshold)
+            success = self.db.set_crypto_threshold(user.id, crypto, threshold)
             
             if success:
                 await query.answer(f"✅ Порог для {crypto} установлен: {threshold}%")
@@ -444,7 +444,7 @@ class CryptoTrackingHandler:
             crypto = validate_crypto_symbol(crypto)
             
             # Устанавливаем порог
-            success = self.db.set_tracking_threshold(user.id, crypto, threshold)
+            success = self.db.set_crypto_threshold(user.id, crypto, threshold)
             
             if success:
                 # Убираем из ожидания

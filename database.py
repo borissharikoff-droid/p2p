@@ -690,6 +690,23 @@ class DatabaseManager:
             logger.error(f"Ошибка установки порога: {e}")
             return False
     
+    def set_crypto_threshold(self, user_id: int, crypto: str, threshold: float) -> bool:
+        """Установить порог для конкретной криптовалюты"""
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute('''
+                    UPDATE crypto_tracking
+                    SET threshold = ?, updated_at = CURRENT_TIMESTAMP
+                    WHERE user_id = ? AND crypto = ?
+                ''', (threshold, user_id, crypto))
+                conn.commit()
+                return cursor.rowcount > 0
+                
+        except Exception as e:
+            logger.error(f"Ошибка установки порога для {crypto}: {e}")
+            return False
+    
     def toggle_all_tracking(self, user_id: int) -> bool:
         """Переключить все отслеживания пользователя"""
         try:
