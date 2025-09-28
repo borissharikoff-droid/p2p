@@ -783,16 +783,13 @@ class CryptoTrackingHandler:
             message = f"{color}${crypto}: {current_price:,.2f} ({change_symbol}{change_percent:.2f}%)\n"
             message += f"📊 Порог: {threshold}% • {info['name']}"
             
-            # Отправляем уведомление
-            if self.application:
-                await self.application.bot.send_message(
-                    chat_id=user_id,
-                    text=message,
-                    parse_mode='HTML'
-                )
-                
-                # Обновляем время последнего уведомления
-                self.db.update_tracking_notification(user_id, crypto)
+                # Отправляем уведомление
+                if self.application:
+                    await self.application.bot.send_message(
+                        chat_id=user_id,
+                        text=message,
+                        parse_mode='HTML'
+                    )
                 
                 logger.info(f"Отправлено уведомление пользователю {user_id}: {crypto} {change_percent:.2f}%")
             
@@ -888,14 +885,11 @@ class CryptoTrackingHandler:
                     if abs(change_percent) >= threshold:
                         logger.info(f"🚨 Порог превышен! {crypto}: {change_percent:+.2f}% >= {threshold}%")
                         
-                        # Проверяем, не отправляли ли уведомление недавно (защита от спама)
-                        if self.should_send_notification(last_notification):
-                            logger.info(f"📤 Отправляем уведомление пользователю {user_id}")
-                            await self.send_price_notification(
-                                user_id, crypto, current_price, last_price, change_percent, threshold
-                            )
-                        else:
-                            logger.info(f"⏰ Уведомление недавно отправлялось, пропускаем")
+                        # Отправляем уведомление сразу (без защиты от спама)
+                        logger.info(f"📤 Отправляем уведомление пользователю {user_id}")
+                        await self.send_price_notification(
+                            user_id, crypto, current_price, last_price, change_percent, threshold
+                        )
                     else:
                         logger.info(f"✅ Изменение {change_percent:+.2f}% меньше порога {threshold}%")
                     
@@ -905,19 +899,3 @@ class CryptoTrackingHandler:
         except Exception as e:
             logger.error(f"Ошибка проверки уведомлений: {e}")
     
-    def should_send_notification(self, last_notification: str) -> bool:
-        """Проверить, можно ли отправлять уведомление (защита от спама)"""
-        try:
-            if not last_notification:
-                return True
-            
-            # Парсим время последнего уведомления
-            last_time = datetime.fromisoformat(last_notification)
-            current_time = get_moscow_time()
-            
-            # Не отправляем уведомления чаще чем раз в 30 минут
-            time_diff = (current_time - last_time).total_seconds()
-            return time_diff >= 1800  # 30 минут
-            
-        except Exception:
-            return True  # Если ошибка парсинга, разрешаем отправку
