@@ -653,20 +653,23 @@ class DatabaseManager:
                 if result:
                     # Переключаем существующую запись
                     new_status = not bool(result[0])
+                    logger.info(f"🔄 Переключаем отслеживание {crypto} для пользователя {user_id}: {result[0]} -> {new_status}")
                     cursor.execute('''
                         UPDATE crypto_tracking
                         SET is_active = ?, updated_at = CURRENT_TIMESTAMP
                         WHERE user_id = ? AND crypto = ?
                     ''', (new_status, user_id, crypto))
                 else:
-                    # Создаем новую запись
+                    # Создаем новую запись с порогом по умолчанию
+                    logger.info(f"➕ Создаем новое отслеживание {crypto} для пользователя {user_id} с порогом 5.0%")
                     cursor.execute('''
-                        INSERT INTO crypto_tracking (user_id, crypto, is_active)
-                        VALUES (?, ?, 1)
+                        INSERT INTO crypto_tracking (user_id, crypto, is_active, threshold)
+                        VALUES (?, ?, 1, 5.0)
                     ''', (user_id, crypto))
                     new_status = True
                 
                 conn.commit()
+                logger.info(f"✅ Отслеживание {crypto} для пользователя {user_id}: {'активно' if new_status else 'неактивно'}")
                 return new_status
                 
         except Exception as e:
@@ -820,7 +823,9 @@ class DatabaseManager:
                 ''')
                 
                 rows = cursor.fetchall()
-                return [
+                logger.info(f"🔍 Найдено {len(rows)} активных отслеживаний в базе данных")
+                
+                result = [
                     {
                         'user_id': row[0],
                         'crypto': row[1],
@@ -830,6 +835,11 @@ class DatabaseManager:
                     }
                     for row in rows
                 ]
+                
+                for tracking in result:
+                    logger.info(f"📊 Отслеживание: {tracking['crypto']} для пользователя {tracking['user_id']}, порог {tracking['threshold']}%")
+                
+                return result
                 
         except Exception as e:
             logger.error(f"Ошибка получения активных отслеживаний: {e}")

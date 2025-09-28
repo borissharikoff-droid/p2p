@@ -277,7 +277,9 @@ class CryptoTrackingHandler:
             
             # Загружаем актуальные цены для всех отслеживаемых криптовалют
             cryptos_to_fetch = [t['crypto'] for t in active_trackings]
+            logger.info(f"💰 Загружаем цены для: {cryptos_to_fetch}")
             current_prices = await get_multiple_crypto_prices(cryptos_to_fetch)
+            logger.info(f"✅ Получены цены: {current_prices}")
             
             # Создаем кнопки для каждого отслеживания
             keyboard = []
