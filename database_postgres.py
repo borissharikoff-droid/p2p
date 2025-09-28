@@ -577,3 +577,20 @@ class DatabaseManager:
         except Exception as e:
             logger.error(f"Ошибка удаления кошелька: {e}")
             return False
+    
+    def update_tracking_price(self, user_id: int, crypto: str, price: float) -> bool:
+        """Обновить последнюю цену для отслеживания"""
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute('''
+                    UPDATE crypto_tracking
+                    SET last_price = %s, updated_at = CURRENT_TIMESTAMP
+                    WHERE user_id = %s AND crypto = %s
+                ''', (price, user_id, crypto))
+                conn.commit()
+                return cursor.rowcount > 0
+                
+        except Exception as e:
+            logger.error(f"Ошибка обновления цены отслеживания: {e}")
+            return False
