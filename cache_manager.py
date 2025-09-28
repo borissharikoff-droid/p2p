@@ -9,7 +9,8 @@ import os
 import time
 import logging
 from datetime import datetime, timedelta
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
+from exceptions import CacheError
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +33,7 @@ class CacheManager:
         # Создаем директорию кэша если её нет
         os.makedirs(cache_dir, exist_ok=True)
     
-    def get_cached_rates(self) -> Optional[Dict[str, Any]]:
+    def get_cached_rates(self) -> Optional[List[Dict[str, Any]]]:
         """Получить курсы из кэша"""
         try:
             if not os.path.exists(self.cache_file):
@@ -54,9 +55,9 @@ class CacheManager:
             
         except Exception as e:
             logger.error(f"Ошибка чтения кэша: {e}")
-            return None
+            raise CacheError(f"Не удалось прочитать кэш: {e}")
     
-    def set_cached_rates(self, rates_data: Dict[str, Any]) -> bool:
+    def set_cached_rates(self, rates_data: List[Dict[str, Any]]) -> bool:
         """Сохранить курсы в кэш"""
         try:
             cache_data = {
@@ -72,7 +73,7 @@ class CacheManager:
             
         except Exception as e:
             logger.error(f"Ошибка сохранения кэша: {e}")
-            return False
+            raise CacheError(f"Не удалось сохранить кэш: {e}")
     
     def clear_cache(self) -> bool:
         """Очистить кэш"""
@@ -120,7 +121,7 @@ class CacheManager:
                 'age_seconds': 0
             }
     
-    def cleanup_old_cache_files(self, max_age_hours: int = 24):
+    def cleanup_old_cache_files(self, max_age_hours: int = 24) -> int:
         """Очистка старых файлов кэша"""
         try:
             if not os.path.exists(self.cache_dir):
@@ -144,4 +145,4 @@ class CacheManager:
             
         except Exception as e:
             logger.error(f"Ошибка очистки старых файлов кэша: {e}")
-            return 0
+            raise CacheError(f"Не удалось очистить старые файлы кэша: {e}")

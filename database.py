@@ -7,8 +7,9 @@
 import sqlite3
 import logging
 from datetime import datetime
-from typing import Optional, Dict, List, Tuple
+from typing import Optional, Dict, List, Tuple, Union, Any
 import json
+from exceptions import DatabaseError
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +21,7 @@ class DatabaseManager:
         self.db_path = db_path
         self.init_database()
     
-    def get_connection(self):
+    def get_connection(self) -> sqlite3.Connection:
         """Получить соединение с базой данных"""
         return sqlite3.connect(self.db_path)
     

@@ -10,7 +10,8 @@ from bs4 import BeautifulSoup
 import re
 import json
 from datetime import datetime
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Union
+from exceptions import BestChangeError
 
 
 class BestChangeParser:
@@ -32,7 +33,7 @@ class BestChangeParser:
         }
         self.session.headers.update(self.headers)
     
-    def get_page_content(self) -> Optional[str]:
+    def get_page_content(self) -> str:
         """Получает содержимое страницы"""
         try:
             print(f"Загружаем страницу: {self.target_url}")
@@ -42,7 +43,7 @@ class BestChangeParser:
             return response.text
         except requests.RequestException as e:
             print(f"Ошибка при загрузке страницы: {e}")
-            return None
+            raise BestChangeError(f"Не удалось загрузить страницу: {e}")
     
     def parse_exchange_rates(self, html_content: str) -> List[Dict]:
         """Парсит курсы обмена из HTML"""
@@ -172,36 +173,39 @@ class BestChangeParser:
         
         return filename
     
-    def run(self) -> Dict:
+    def run(self) -> Dict[str, Union[bool, str, List[Dict], int]]:
         """Основной метод для запуска парсера"""
         print("Запуск парсера BestChange...")
         
-        # Получаем содержимое страницы
-        html_content = self.get_page_content()
-        if not html_content:
-            return {"error": "Не удалось загрузить страницу"}
-        
-        # Парсим данные
-        exchange_data = self.parse_exchange_rates(html_content)
-        if not exchange_data:
-            return {"error": "Не удалось извлечь данные об обменниках"}
-        
-        # Сортируем по количеству отзывов
-        sorted_data = self.sort_by_reviews(exchange_data)
-        
-        # Форматируем вывод
-        formatted_output = self.format_output(sorted_data)
-        
-        # Сохраняем в JSON
-        json_filename = self.save_to_json(sorted_data)
-        
-        return {
-            "success": True,
-            "data": sorted_data,
-            "formatted_output": formatted_output,
-            "json_file": json_filename,
-            "total_exchangers": len(sorted_data)
-        }
+        try:
+            # Получаем содержимое страницы
+            html_content = self.get_page_content()
+            
+            # Парсим данные
+            exchange_data = self.parse_exchange_rates(html_content)
+            if not exchange_data:
+                raise BestChangeError("Не удалось извлечь данные об обменниках")
+            
+            # Сортируем по количеству отзывов
+            sorted_data = self.sort_by_reviews(exchange_data)
+            
+            # Форматируем вывод
+            formatted_output = self.format_output(sorted_data)
+            
+            # Сохраняем в JSON
+            json_filename = self.save_to_json(sorted_data)
+            
+            return {
+                "success": True,
+                "data": sorted_data,
+                "formatted_output": formatted_output,
+                "json_file": json_filename,
+                "total_exchangers": len(sorted_data)
+            }
+        except BestChangeError:
+            raise
+        except Exception as e:
+            raise BestChangeError(f"Неожиданная ошибка парсера: {e}")
 
 
 def main():
