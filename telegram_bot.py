@@ -288,6 +288,29 @@ class TrustedCurrencyRateBot:
             logger.error(f"Ошибка в stats_command: {e}")
             await update.message.reply_text("❌ Ошибка получения статистики")
     
+    async def test_notification_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Обработчик команды /test_notification - тестирование уведомлений"""
+        user = update.effective_user
+        
+        try:
+            # Отправляем тестовое уведомление
+            test_message = "🧪 ТЕСТ: Уведомления работают!\n\n"
+            test_message += "🟢$BTC: 123,456.78 (+5.15%)\n"
+            test_message += "📊 Порог: 0.1% • Bitcoin"
+            
+            await update.message.reply_text(test_message)
+            
+            # Также отправляем через crypto_tracking_handler
+            await self.crypto_tracking_handler.send_price_notification(
+                user.id, "BTC", 123456.78, 120000.0, 2.88, 0.1
+            )
+            
+            logger.info(f"Тестовое уведомление отправлено пользователю {user.id}")
+            
+        except Exception as e:
+            logger.error(f"Ошибка в test_notification_command: {e}")
+            await update.message.reply_text("❌ Ошибка отправки тестового уведомления")
+    
     async def handle_back_to_menu(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Обработчик кнопки 'Назад в меню'"""
         query = update.callback_query
@@ -504,6 +527,7 @@ def main() -> None:
     application.add_handler(CommandHandler("start", bot.start_command))
     application.add_handler(CommandHandler("help", bot.help_command))
     application.add_handler(CommandHandler("stats", bot.stats_command))
+    application.add_handler(CommandHandler("test_notification", bot.test_notification_command))
     
     # Добавляем обработчик callback'ов для кнопок
     application.add_handler(CallbackQueryHandler(bot.button_callback))

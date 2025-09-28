@@ -844,6 +844,21 @@ class CryptoTrackingHandler:
             
             logger.info(f"📊 Найдено {len(active_trackings)} активных отслеживаний")
             
+            # ТЕСТ: Отправляем тестовое уведомление каждые 5 минут
+            if self.application:
+                test_message = "🧪 ТЕСТ: JobQueue работает! Проверка цен каждые 5 минут."
+                try:
+                    # Отправляем тестовое сообщение первому пользователю
+                    if active_trackings:
+                        user_id = active_trackings[0]['user_id']
+                        await self.application.bot.send_message(
+                            chat_id=user_id,
+                            text=test_message
+                        )
+                        logger.info(f"✅ Тестовое сообщение отправлено пользователю {user_id}")
+                except Exception as e:
+                    logger.error(f"❌ Ошибка отправки тестового сообщения: {e}")
+            
             # Группируем по криптовалютам для оптимизации запросов
             cryptos_to_check = list(set(tracking['crypto'] for tracking in active_trackings))
             
