@@ -134,14 +134,8 @@ def validate_crypto_symbol(symbol: str) -> str:
     if not re.match(r'^[A-Z0-9]{2,10}$', clean_symbol):
         raise ValidationError(f"Неверный формат символа криптовалюты: {symbol}")
     
-    # Список поддерживаемых криптовалют
-    supported_cryptos = {
-        'BTC', 'ETH', 'USDT', 'BNB', 'ADA', 'SOL', 'XRP', 
-        'DOT', 'DOGE', 'MATIC', 'LTC', 'BCH', 'LINK', 'UNI'
-    }
-    
-    if clean_symbol not in supported_cryptos:
-        raise ValidationError(f"Неподдерживаемая криптовалюта: {clean_symbol}")
+    # Проверяем только формат, поддержка проверяется в crypto_api.py
+    # Здесь мы только валидируем формат символа
     
     return clean_symbol
 
@@ -162,10 +156,10 @@ def validate_threshold(threshold: float) -> float:
     if not isinstance(threshold, (int, float)):
         raise ValidationError("Порог должен быть числом")
     
-    if threshold <= 0:
-        raise ValidationError("Порог должен быть больше 0")
+    if threshold < 0.1:
+        raise ValidationError("Минимальный порог: 0.1%")
     
-    if threshold > 100:
-        raise ValidationError("Порог не может быть больше 100%")
+    if threshold > 50:
+        raise ValidationError("Максимальный порог: 50%")
     
     return float(threshold)

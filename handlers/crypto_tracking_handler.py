@@ -18,7 +18,7 @@ from database import DatabaseManager
 from exceptions import ValidationError, DatabaseError
 from validators import validate_crypto_symbol, validate_threshold
 from config import bot_config
-from crypto_api import get_crypto_price, get_multiple_crypto_prices
+from crypto_api import get_crypto_price, get_multiple_crypto_prices, crypto_api
 
 logger = logging.getLogger(__name__)
 
@@ -368,12 +368,14 @@ class CryptoTrackingHandler:
                 message += f"{info['emoji']} <b>{crypto} ({info['name']})</b>\n\n"
                 message += "Введите порог изменения цены в процентах:\n\n"
                 message += "<b>Примеры:</b>\n"
+                message += "• <code>0.1</code> - уведомления при изменении на 0.1%\n"
+                message += "• <code>1</code> - уведомления при изменении на 1%\n"
                 message += "• <code>5</code> - уведомления при изменении на 5%\n"
-                message += "• <code>2.5</code> - уведомления при изменении на 2.5%\n"
                 message += "• <code>10</code> - уведомления при изменении на 10%\n\n"
-                message += "Минимум: 1%, Максимум: 50%"
+                message += "Минимум: 0.1%, Максимум: 50%"
                 
                 keyboard = [
+                    [InlineKeyboardButton("0.1%", callback_data=f"tracking_threshold_{crypto}_0.1")],
                     [InlineKeyboardButton("1%", callback_data=f"tracking_threshold_{crypto}_1")],
                     [InlineKeyboardButton("2.5%", callback_data=f"tracking_threshold_{crypto}_2.5")],
                     [InlineKeyboardButton("5%", callback_data=f"tracking_threshold_{crypto}_5")],
@@ -623,22 +625,39 @@ class CryptoTrackingHandler:
             # Ищем криптовалюту
             found_cryptos = []
             
-            # Поиск по символу
-            if text in self.supported_cryptos:
-                found_cryptos.append((text, self.supported_cryptos[text]))
+            # Проверяем, есть ли криптовалюта в API
+            if text in crypto_api.crypto_ids:
+                # Создаем базовую информацию для найденной криптовалюты
+                crypto_info = {
+                    'name': text,  # Будет заменено на реальное название при получении цены
+                    'emoji': '🪙',
+                    'color': '🟡',
+                    'category': 'other'
+                }
+                found_cryptos.append((text, crypto_info))
             else:
-                # Поиск по названию
-                for crypto, info in self.supported_cryptos.items():
-                    if text in info['name'].upper():
-                        found_cryptos.append((crypto, info))
+                # Поиск по символу в локальном списке
+                if text in self.supported_cryptos:
+                    found_cryptos.append((text, self.supported_cryptos[text]))
+                else:
+                    # Поиск по названию в локальном списке
+                    for crypto, info in self.supported_cryptos.items():
+                        if text in info['name'].upper():
+                            found_cryptos.append((crypto, info))
             
             if not found_cryptos:
+                keyboard = [
+                    [InlineKeyboardButton("🔙 Назад", callback_data="tracking_select_crypto")]
+                ]
+                reply_markup = InlineKeyboardMarkup(keyboard)
+                
                 await update.message.reply_text(
                     f"❌ Криптовалюта '{text}' не найдена.\n\n"
                     "Попробуйте:\n"
                     "• BTC, ETH, SOL, ADA\n"
                     "• Bitcoin, Ethereum, Solana\n"
-                    "• Или выберите из категорий"
+                    "• Или выберите из категорий",
+                    reply_markup=reply_markup
                 )
                 return
             
