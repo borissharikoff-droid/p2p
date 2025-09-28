@@ -331,7 +331,7 @@ class TrustedCurrencyRateBot:
             elif query.data == "tracking_my_list":
                 await self.crypto_tracking_handler.handle_tracking_my_list(update, context)
             elif query.data == "tracking_settings":
-                await query.answer("Настройки в разработке")
+                await self.crypto_tracking_handler.handle_tracking_settings(update, context)
             elif query.data.startswith("tracking_crypto_"):
                 crypto = query.data.split("_")[-1]
                 await self.crypto_tracking_handler.handle_tracking_crypto_toggle(update, context, crypto)

@@ -172,7 +172,7 @@ class CryptoTrackingHandler:
                         if crypto in self.supported_cryptos:
                             info = self.supported_cryptos[crypto]
                             is_tracked = crypto in tracked_cryptos
-                            button_text = f"{'✅' if is_tracked else '⬜'} {info['emoji']} {crypto}"
+                            button_text = f"{'✅' if is_tracked else '⬜'} ${crypto}"
                             row.append(InlineKeyboardButton(button_text, callback_data=f"tracking_crypto_{crypto}"))
                 keyboard.append(row)
             
@@ -282,12 +282,17 @@ class CryptoTrackingHandler:
                 threshold = tracking['threshold']
                 last_price = tracking.get('last_price')
                 
+                # Получаем информацию о криптовалюте (из локального списка или создаем базовую)
                 if crypto in self.supported_cryptos:
                     info = self.supported_cryptos[crypto]
-                    price_text = f"${last_price:,.2f}" if last_price else "—"
-                    
-                    button_text = f"{info['emoji']} {crypto} • {threshold}% • {price_text}"
-                    keyboard.append([InlineKeyboardButton(button_text, callback_data=f"tracking_manage_{crypto}")])
+                    emoji = info['emoji']
+                else:
+                    # Для криптовалют из API создаем базовую информацию
+                    emoji = '🪙'
+                
+                price_text = f"${last_price:,.2f}" if last_price else "—"
+                button_text = f"{emoji} ${crypto} • {threshold}% • {price_text}"
+                keyboard.append([InlineKeyboardButton(button_text, callback_data=f"tracking_manage_{crypto}")])
             
             keyboard.append([InlineKeyboardButton("🏠 Назад", callback_data="tracking_menu")])
             reply_markup = InlineKeyboardMarkup(keyboard)
@@ -514,7 +519,7 @@ class CryptoTrackingHandler:
                     if i + j < len(category_cryptos):
                         crypto, info = category_cryptos[i + j]
                         is_tracked = crypto in tracked_cryptos
-                        button_text = f"{'✅' if is_tracked else '⬜'} {info['emoji']} {crypto}"
+                        button_text = f"{'✅' if is_tracked else '⬜'} ${crypto}"
                         row.append(InlineKeyboardButton(button_text, callback_data=f"tracking_crypto_{crypto}"))
                 keyboard.append(row)
             
@@ -552,7 +557,7 @@ class CryptoTrackingHandler:
                         crypto = popular[i + j]
                         if crypto in self.supported_cryptos:
                             info = self.supported_cryptos[crypto]
-                            row.append(InlineKeyboardButton(f"{info['emoji']} {crypto}", callback_data=f"tracking_crypto_{crypto}"))
+                            row.append(InlineKeyboardButton(f"${crypto}", callback_data=f"tracking_crypto_{crypto}"))
                 keyboard.append(row)
             
             keyboard.append([InlineKeyboardButton("⬅️ Назад к выбору", callback_data="tracking_select_crypto")])
@@ -593,7 +598,7 @@ class CryptoTrackingHandler:
                     if i + j < len(cryptos_list):
                         crypto, info = cryptos_list[i + j]
                         is_tracked = crypto in tracked_cryptos
-                        button_text = f"{'✅' if is_tracked else '⬜'} {info['emoji']} {crypto}"
+                        button_text = f"{'✅' if is_tracked else '⬜'} ${crypto}"
                         row.append(InlineKeyboardButton(button_text, callback_data=f"tracking_crypto_{crypto}"))
                 keyboard.append(row)
             
@@ -698,7 +703,7 @@ class CryptoTrackingHandler:
                 keyboard = []
                 for crypto, info in found_cryptos[:10]:  # Ограничиваем до 10
                     is_tracked = crypto in tracked_cryptos
-                    button_text = f"{'✅' if is_tracked else '⬜'} {info['emoji']} {crypto}"
+                    button_text = f"{'✅' if is_tracked else '⬜'} ${crypto}"
                     keyboard.append([InlineKeyboardButton(button_text, callback_data=f"tracking_crypto_{crypto}")])
                 
                 keyboard.append([InlineKeyboardButton("🔍 Поиск еще", callback_data="tracking_search")])
@@ -713,6 +718,44 @@ class CryptoTrackingHandler:
     def is_waiting_search_input(self, user_id: int) -> bool:
         """Проверить, ожидает ли бот поисковый запрос от пользователя"""
         return hasattr(self, 'waiting_search_input') and user_id in self.waiting_search_input
+    
+    async def handle_tracking_settings(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Обработчик настроек отслеживания"""
+        query = update.callback_query
+        user = update.effective_user
+        
+        try:
+            # Получаем статистику пользователя
+            user_trackings = self.db.get_tracking_settings(user.id)
+            active_trackings = [t for t in user_trackings if t.get('is_active', True)]
+            
+            message = "⚙️ <b>Настройки отслеживания</b>\n\n"
+            message += f"🔔 Активных отслеживаний: <b>{len(active_trackings)}</b>\n"
+            
+            if active_trackings:
+                message += "\n<b>Отслеживаемые криптовалюты:</b>\n"
+                for tracking in active_trackings[:5]:  # Показываем первые 5
+                    crypto = tracking['crypto']
+                    threshold = tracking['threshold']
+                    message += f"• ${crypto} (порог: {threshold}%)\n"
+                
+                if len(active_trackings) > 5:
+                    message += f"• ... и еще {len(active_trackings) - 5}\n"
+            
+            message += "\n<b>Доступные действия:</b>"
+            
+            keyboard = [
+                [InlineKeyboardButton("📋 Мои отслеживания", callback_data="tracking_my_list")],
+                [InlineKeyboardButton("🪙 Добавить криптовалюту", callback_data="tracking_select_crypto")],
+                [InlineKeyboardButton("🏠 Главное меню", callback_data="tracking_menu")]
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            
+            await query.edit_message_text(message, parse_mode='HTML', reply_markup=reply_markup)
+            
+        except Exception as e:
+            logger.error(f"Ошибка в handle_tracking_settings: {e}")
+            await query.answer("❌ Произошла ошибка")
     
     async def send_price_notification(self, user_id: int, crypto: str, current_price: float, 
                                     previous_price: float, change_percent: float, threshold: float) -> None:
