@@ -32,9 +32,8 @@ class DatabaseManager:
             logger.info("🔗 Найден DATABASE_URL для PostgreSQL")
             return database_url
         
-        # Для локальной разработки
-        logger.warning("⚠️ DATABASE_URL не найден, используем локальный PostgreSQL")
-        return "postgresql://postgres:password@localhost:5432/telegram_bot"
+        # Если нет DATABASE_URL, выбрасываем исключение
+        raise DatabaseError("DATABASE_URL не найден. PostgreSQL недоступен.")
     
     @contextmanager
     def get_connection(self):

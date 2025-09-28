@@ -58,7 +58,10 @@ class TrustedCurrencyRateBot:
         try:
             # PostgreSQL не требует аргументов
             self.db = DatabaseManager()
-        except:
+            print("✅ PostgreSQL инициализирован успешно")
+        except Exception as e:
+            print(f"⚠️ PostgreSQL недоступен: {e}")
+            print("🔄 Переключаемся на SQLite")
             # SQLite требует путь к файлу
             self.db = DatabaseManager(db_config.path)
         self.cache = CacheManager(cache_config.directory, cache_config.duration)
