@@ -156,8 +156,8 @@ def validate_threshold(threshold: float) -> float:
     if not isinstance(threshold, (int, float)):
         raise ValidationError("Порог должен быть числом")
     
-    if threshold < 0.1:
-        raise ValidationError("Минимальный порог: 0.1%")
+    if threshold < 1.0:
+        raise ValidationError("Минимальный порог: 1%")
     
     if threshold > 50:
         raise ValidationError("Максимальный порог: 50%")

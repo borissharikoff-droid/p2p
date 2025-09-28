@@ -114,8 +114,13 @@ class CryptoTrackingHandler:
             user_trackings = self.db.get_tracking_settings(user.id)
             active_count = sum(1 for t in user_trackings if t.get('is_active', False))
             
+            # Получаем список отслеживаемых криптовалют
+            tracked_list = [f"${t['crypto']}" for t in user_trackings if t.get('is_active', False)]
+            tracked_text = ", ".join(tracked_list) if tracked_list else "Нет активных отслеживаний"
+            
             message = "📊 <b>Отслеживание криптовалют</b>\n\n"
-            message += f"🔔 Активных отслеживаний: <b>{active_count}</b>\n\n"
+            message += f"🔔 Активных отслеживаний: <b>{active_count}</b>\n"
+            message += f"{tracked_text}\n\n"
             message += "<b>Как это работает:</b>\n"
             message += "• Выберите криптовалюту для отслеживания\n"
             message += "• Установите порог изменения цены (например, 5%)\n"
@@ -128,7 +133,6 @@ class CryptoTrackingHandler:
             keyboard = [
                 [InlineKeyboardButton("🪙 Выбрать криптовалюты", callback_data="tracking_select_crypto")],
                 [InlineKeyboardButton("📋 Мои отслеживания", callback_data="tracking_my_list")],
-                [InlineKeyboardButton("⚙️ Настройки", callback_data="tracking_settings")],
                 [InlineKeyboardButton("🏠 Назад", callback_data="back_to_menu")]
             ]
             reply_markup = InlineKeyboardMarkup(keyboard)
@@ -275,28 +279,13 @@ class CryptoTrackingHandler:
             
             message = "📋 <b>Мои отслеживания</b>\n\n"
             
-            # Загружаем актуальные цены для всех отслеживаемых криптовалют
-            cryptos_to_fetch = [t['crypto'] for t in active_trackings]
-            logger.info(f"💰 Загружаем цены для: {cryptos_to_fetch}")
-            current_prices = await get_multiple_crypto_prices(cryptos_to_fetch)
-            logger.info(f"✅ Получены цены: {current_prices}")
-            
             # Создаем кнопки для каждого отслеживания
             keyboard = []
             for tracking in active_trackings:
                 crypto = tracking['crypto']
                 threshold = tracking['threshold']
                 
-                # Получаем актуальную цену
-                current_price = current_prices.get(crypto)
-                if current_price:
-                    price_text = f"${current_price:,.2f}"
-                    # Обновляем цену в базе данных
-                    self.db.update_crypto_price(user.id, crypto, current_price)
-                else:
-                    price_text = "—"
-                
-                button_text = f"${crypto} • {threshold}% • {price_text}"
+                button_text = f"${crypto} • {threshold}%"
                 keyboard.append([InlineKeyboardButton(button_text, callback_data=f"tracking_manage_{crypto}")])
             
             keyboard.append([InlineKeyboardButton("🏠 Назад", callback_data="tracking_menu")])
@@ -339,8 +328,7 @@ class CryptoTrackingHandler:
                 price_text = f"${last_price:,.2f}" if last_price else "—"
                 
                 message = f"⚙️ <b>Управление отслеживанием</b>\n\n"
-                message += f"{info['emoji']} <b>{crypto} ({info['name']})</b>\n"
-                message += f"📊 Текущая цена: <b>{price_text}</b>\n"
+                message += f"<b>{crypto} ({info['name']})</b>\n"
                 message += f"🔔 Порог уведомлений: <b>{threshold}%</b>\n\n"
                 message += "Выберите действие:"
                 
@@ -375,17 +363,16 @@ class CryptoTrackingHandler:
                 info = self.supported_cryptos[crypto]
                 
                 message = f"📊 <b>Установка порога для {crypto}</b>\n\n"
-                message += f"{info['emoji']} <b>{crypto} ({info['name']})</b>\n\n"
+                message += f"<b>{crypto} ({info['name']})</b>\n\n"
                 message += "Введите порог изменения цены в процентах:\n\n"
                 message += "<b>Примеры:</b>\n"
-                message += "• <code>0.1</code> - уведомления при изменении на 0.1%\n"
                 message += "• <code>1</code> - уведомления при изменении на 1%\n"
+                message += "• <code>2.5</code> - уведомления при изменении на 2.5%\n"
                 message += "• <code>5</code> - уведомления при изменении на 5%\n"
                 message += "• <code>10</code> - уведомления при изменении на 10%\n\n"
-                message += "Минимум: 0.1%, Максимум: 50%"
+                message += "Минимум: 1%, Максимум: 50%"
                 
                 keyboard = [
-                    [InlineKeyboardButton("0.1%", callback_data=f"tracking_threshold_{crypto}_0.1")],
                     [InlineKeyboardButton("1%", callback_data=f"tracking_threshold_{crypto}_1")],
                     [InlineKeyboardButton("2.5%", callback_data=f"tracking_threshold_{crypto}_2.5")],
                     [InlineKeyboardButton("5%", callback_data=f"tracking_threshold_{crypto}_5")],
@@ -445,6 +432,12 @@ class CryptoTrackingHandler:
         try:
             # Проверяем, ожидает ли бот ввод порога
             if user.id not in self.waiting_threshold_input:
+                return
+            
+            # Проверяем, не является ли это поисковым запросом
+            if hasattr(self, 'waiting_search_input') and user.id in self.waiting_search_input:
+                # Это поисковый запрос, обрабатываем его
+                await self.handle_tracking_search_message(update, context)
                 return
             
             crypto = self.waiting_threshold_input[user.id]
@@ -843,21 +836,6 @@ class CryptoTrackingHandler:
                 return
             
             logger.info(f"📊 Найдено {len(active_trackings)} активных отслеживаний")
-            
-            # ТЕСТ: Отправляем тестовое уведомление каждые 5 минут
-            if self.application:
-                test_message = "🧪 ТЕСТ: JobQueue работает! Проверка цен каждые 5 минут."
-                try:
-                    # Отправляем тестовое сообщение первому пользователю
-                    if active_trackings:
-                        user_id = active_trackings[0]['user_id']
-                        await self.application.bot.send_message(
-                            chat_id=user_id,
-                            text=test_message
-                        )
-                        logger.info(f"✅ Тестовое сообщение отправлено пользователю {user_id}")
-                except Exception as e:
-                    logger.error(f"❌ Ошибка отправки тестового сообщения: {e}")
             
             # Группируем по криптовалютам для оптимизации запросов
             cryptos_to_check = list(set(tracking['crypto'] for tracking in active_trackings))
