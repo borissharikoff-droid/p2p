@@ -356,6 +356,59 @@ class TrustedCurrencyRateBot:
             logger.error(f"Ошибка в debug_tracking_command: {e}")
             await update.message.reply_text(f"❌ Ошибка отладки: {e}")
     
+    async def db_status_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Обработчик команды /db_status - статус базы данных"""
+        user = update.effective_user
+        
+        try:
+            # Получаем статистику БД
+            with self.db.get_connection() as conn:
+                cursor = conn.cursor()
+                
+                # Считаем пользователей
+                cursor.execute('SELECT COUNT(*) FROM users')
+                users_count = cursor.fetchone()[0]
+                
+                # Считаем отслеживания
+                cursor.execute('SELECT COUNT(*) FROM crypto_tracking')
+                trackings_count = cursor.fetchone()[0]
+                
+                # Считаем активные отслеживания
+                cursor.execute('SELECT COUNT(*) FROM crypto_tracking WHERE is_active = 1')
+                active_trackings_count = cursor.fetchone()[0]
+                
+                # Считаем логи команд
+                cursor.execute('SELECT COUNT(*) FROM commands_log')
+                logs_count = cursor.fetchone()[0]
+                
+                # Получаем последние 5 отслеживаний
+                cursor.execute('''
+                    SELECT user_id, crypto, threshold, is_active, created_at 
+                    FROM crypto_tracking 
+                    ORDER BY created_at DESC 
+                    LIMIT 5
+                ''')
+                recent_trackings = cursor.fetchall()
+                
+                status_message = f"📊 <b>СТАТУС БАЗЫ ДАННЫХ</b>\n\n"
+                status_message += f"👥 Пользователей: <b>{users_count}</b>\n"
+                status_message += f"📈 Всего отслеживаний: <b>{trackings_count}</b>\n"
+                status_message += f"✅ Активных отслеживаний: <b>{active_trackings_count}</b>\n"
+                status_message += f"📝 Логов команд: <b>{logs_count}</b>\n\n"
+                
+                if recent_trackings:
+                    status_message += "<b>Последние отслеживания:</b>\n"
+                    for tracking in recent_trackings:
+                        user_id, crypto, threshold, is_active, created_at = tracking
+                        status = "✅" if is_active else "❌"
+                        status_message += f"{status} {crypto} ({threshold}%) - user {user_id}\n"
+                
+                await update.message.reply_text(status_message, parse_mode='HTML')
+                
+        except Exception as e:
+            logger.error(f"Ошибка в db_status_command: {e}")
+            await update.message.reply_text(f"❌ Ошибка получения статуса БД: {e}")
+    
     async def handle_back_to_menu(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Обработчик кнопки 'Назад в меню'"""
         query = update.callback_query
@@ -574,6 +627,7 @@ def main() -> None:
     application.add_handler(CommandHandler("stats", bot.stats_command))
     application.add_handler(CommandHandler("test_notification", bot.test_notification_command))
     application.add_handler(CommandHandler("debug_tracking", bot.debug_tracking_command))
+    application.add_handler(CommandHandler("db_status", bot.db_status_command))
     
     # Добавляем обработчик callback'ов для кнопок
     application.add_handler(CallbackQueryHandler(bot.button_callback))
