@@ -311,6 +311,47 @@ class TrustedCurrencyRateBot:
             logger.error(f"Ошибка в test_notification_command: {e}")
             await update.message.reply_text("❌ Ошибка отправки тестового уведомления")
     
+    async def debug_tracking_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Обработчик команды /debug_tracking - отладка отслеживания"""
+        user = update.effective_user
+        
+        try:
+            # Получаем все отслеживания пользователя
+            user_trackings = self.db.get_tracking_settings(user.id)
+            active_trackings = [t for t in user_trackings if t.get('is_active', False)]
+            
+            # Получаем все активные отслеживания из БД
+            all_active = self.db.get_active_trackings()
+            
+            debug_message = f"🔍 <b>ОТЛАДКА ОТСЛЕЖИВАНИЯ</b>\n\n"
+            debug_message += f"👤 Пользователь: {user.id}\n"
+            debug_message += f"📊 Ваших отслеживаний: {len(user_trackings)}\n"
+            debug_message += f"✅ Активных у вас: {len(active_trackings)}\n"
+            debug_message += f"🌍 Всего активных в БД: {len(all_active)}\n\n"
+            
+            if active_trackings:
+                debug_message += "<b>Ваши отслеживания:</b>\n"
+                for tracking in active_trackings:
+                    debug_message += f"• {tracking['crypto']} - {tracking['threshold']}% - {'активно' if tracking.get('is_active') else 'неактивно'}\n"
+            
+            if all_active:
+                debug_message += f"\n<b>Все активные в БД:</b>\n"
+                for tracking in all_active:
+                    debug_message += f"• {tracking['crypto']} (user: {tracking['user_id']}) - {tracking['threshold']}%\n"
+            
+            # Принудительно запускаем проверку цен
+            debug_message += f"\n🚀 <b>Запускаем принудительную проверку цен...</b>"
+            await update.message.reply_text(debug_message, parse_mode='HTML')
+            
+            # Запускаем проверку цен
+            await self.crypto_tracking_handler.check_price_alerts()
+            
+            await update.message.reply_text("✅ Проверка цен завершена! Смотрите логи Railway.")
+            
+        except Exception as e:
+            logger.error(f"Ошибка в debug_tracking_command: {e}")
+            await update.message.reply_text(f"❌ Ошибка отладки: {e}")
+    
     async def handle_back_to_menu(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Обработчик кнопки 'Назад в меню'"""
         query = update.callback_query
@@ -528,6 +569,7 @@ def main() -> None:
     application.add_handler(CommandHandler("help", bot.help_command))
     application.add_handler(CommandHandler("stats", bot.stats_command))
     application.add_handler(CommandHandler("test_notification", bot.test_notification_command))
+    application.add_handler(CommandHandler("debug_tracking", bot.debug_tracking_command))
     
     # Добавляем обработчик callback'ов для кнопок
     application.add_handler(CallbackQueryHandler(bot.button_callback))
