@@ -679,6 +679,16 @@ class DatabaseManager:
                 check_result = cursor.fetchone()
                 logger.info(f"🔍 Проверка записи после создания: {check_result}")
                 
+                # Дополнительная проверка - считаем все записи
+                cursor.execute('SELECT COUNT(*) FROM crypto_tracking')
+                total_after = cursor.fetchone()[0]
+                logger.info(f"📊 Всего записей в БД после создания: {total_after}")
+                
+                # Проверяем структуру таблицы
+                cursor.execute("PRAGMA table_info(crypto_tracking)")
+                table_info = cursor.fetchall()
+                logger.info(f"🗂️ Структура таблицы crypto_tracking: {len(table_info)} колонок")
+                
                 return new_status
                 
         except Exception as e:
