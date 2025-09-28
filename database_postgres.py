@@ -52,6 +52,37 @@ class DatabaseManager:
             if conn:
                 conn.close()
     
+    def start_session(self, user_id: int, username: str = None, first_name: str = None) -> None:
+        """Начать сессию пользователя (совместимость с SQLite версией)"""
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                
+                # Проверяем, существует ли пользователь
+                cursor.execute('SELECT user_id FROM users WHERE user_id = %s', (user_id,))
+                if cursor.fetchone():
+                    # Обновляем активность
+                    cursor.execute('''
+                        UPDATE users 
+                        SET last_activity_date = CURRENT_TIMESTAMP,
+                            username = COALESCE(%s, username),
+                            first_name = COALESCE(%s, first_name)
+                        WHERE user_id = %s
+                    ''', (username, first_name, user_id))
+                else:
+                    # Создаем нового пользователя
+                    cursor.execute('''
+                        INSERT INTO users (user_id, username, first_name, last_activity_date)
+                        VALUES (%s, %s, %s, CURRENT_TIMESTAMP)
+                    ''', (user_id, username, first_name))
+                
+                conn.commit()
+                logger.info(f"Сессия пользователя {user_id} начата")
+                
+        except Exception as e:
+            logger.error(f"Ошибка начала сессии: {e}")
+            raise DatabaseError(f"Ошибка начала сессии: {e}")
+    
     def init_database(self) -> None:
         """Инициализация таблиц базы данных"""
         try:
