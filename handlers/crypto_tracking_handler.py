@@ -275,23 +275,26 @@ class CryptoTrackingHandler:
             
             message = "📋 <b>Мои отслеживания</b>\n\n"
             
+            # Загружаем актуальные цены для всех отслеживаемых криптовалют
+            cryptos_to_fetch = [t['crypto'] for t in active_trackings]
+            current_prices = await get_multiple_crypto_prices(cryptos_to_fetch)
+            
             # Создаем кнопки для каждого отслеживания
             keyboard = []
             for tracking in active_trackings:
                 crypto = tracking['crypto']
                 threshold = tracking['threshold']
-                last_price = tracking.get('last_price')
                 
-                # Получаем информацию о криптовалюте (из локального списка или создаем базовую)
-                if crypto in self.supported_cryptos:
-                    info = self.supported_cryptos[crypto]
-                    emoji = info['emoji']
+                # Получаем актуальную цену
+                current_price = current_prices.get(crypto)
+                if current_price:
+                    price_text = f"${current_price:,.2f}"
+                    # Обновляем цену в базе данных
+                    self.db.update_crypto_price(user.id, crypto, current_price)
                 else:
-                    # Для криптовалют из API создаем базовую информацию
-                    emoji = '🪙'
+                    price_text = "—"
                 
-                price_text = f"${last_price:,.2f}" if last_price else "—"
-                button_text = f"{emoji} ${crypto} • {threshold}% • {price_text}"
+                button_text = f"${crypto} • {threshold}% • {price_text}"
                 keyboard.append([InlineKeyboardButton(button_text, callback_data=f"tracking_manage_{crypto}")])
             
             keyboard.append([InlineKeyboardButton("🏠 Назад", callback_data="tracking_menu")])
@@ -842,7 +845,7 @@ class CryptoTrackingHandler:
             
             for crypto in cryptos_to_check:
                 # Получаем текущую цену
-                current_price = await self.get_crypto_price(crypto)
+                current_price = await get_crypto_price(crypto)
                 
                 if not current_price:
                     continue

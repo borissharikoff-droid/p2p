@@ -707,6 +707,27 @@ class DatabaseManager:
             logger.error(f"Ошибка установки порога для {crypto}: {e}")
             return False
     
+    def update_crypto_price(self, user_id: int, crypto: str, price: float) -> bool:
+        """Обновить цену криптовалюты для пользователя"""
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute('''
+                    UPDATE crypto_tracking
+                    SET last_price = ?, updated_at = CURRENT_TIMESTAMP
+                    WHERE user_id = ? AND crypto = ? AND is_active = 1
+                ''', (price, user_id, crypto))
+                conn.commit()
+                return cursor.rowcount > 0
+                
+        except Exception as e:
+            logger.error(f"Ошибка обновления цены для {crypto}: {e}")
+            return False
+    
+    def update_tracking_price(self, user_id: int, crypto: str, price: float) -> bool:
+        """Обновить цену отслеживания (аналог update_crypto_price)"""
+        return self.update_crypto_price(user_id, crypto, price)
+    
     def toggle_all_tracking(self, user_id: int) -> bool:
         """Переключить все отслеживания пользователя"""
         try:
