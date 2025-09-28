@@ -23,13 +23,9 @@ from datetime import datetime
 
 # Импорты наших модулей
 from config import bot_config, db_config, cache_config, server_config
-try:
-    from database_postgres import DatabaseManager
-    print("✅ Используем PostgreSQL")
-except Exception as e:
-    print(f"⚠️ PostgreSQL недоступен: {e}")
-    print("🔄 Переключаемся на SQLite")
-    from database import DatabaseManager
+# Временно используем только SQLite
+from database import DatabaseManager
+print("🔄 Используем SQLite (PostgreSQL отключен)")
 from cache_manager import CacheManager
 from handlers import RateHandler, WalletHandler, InlineHandler
 from handlers.crypto_tracking_handler import CryptoTrackingHandler
@@ -54,16 +50,9 @@ class TrustedCurrencyRateBot:
     
     def __init__(self):
         # Инициализация компонентов
-        # Инициализируем БД в зависимости от типа
-        try:
-            # PostgreSQL не требует аргументов
-            self.db = DatabaseManager()
-            print("✅ PostgreSQL инициализирован успешно")
-        except Exception as e:
-            print(f"⚠️ PostgreSQL недоступен: {e}")
-            print("🔄 Переключаемся на SQLite")
-            # SQLite требует путь к файлу
-            self.db = DatabaseManager(db_config.path)
+        # Используем SQLite
+        self.db = DatabaseManager(db_config.path)
+        print("✅ SQLite инициализирован успешно")
         self.cache = CacheManager(cache_config.directory, cache_config.duration)
         
         # Инициализация обработчиков
