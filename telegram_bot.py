@@ -23,7 +23,13 @@ from datetime import datetime
 
 # Импорты наших модулей
 from config import bot_config, db_config, cache_config, server_config
-from database_postgres import DatabaseManager
+try:
+    from database_postgres import DatabaseManager
+    logger.info("✅ Используем PostgreSQL")
+except Exception as e:
+    logger.warning(f"⚠️ PostgreSQL недоступен: {e}")
+    logger.info("🔄 Переключаемся на SQLite")
+    from database import DatabaseManager
 from cache_manager import CacheManager
 from handlers import RateHandler, WalletHandler, InlineHandler
 from handlers.crypto_tracking_handler import CryptoTrackingHandler

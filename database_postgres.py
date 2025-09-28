@@ -26,10 +26,13 @@ class DatabaseManager:
     def _get_connection_string(self) -> str:
         """Получить строку подключения к PostgreSQL"""
         # Для Railway
-        if os.getenv('DATABASE_URL'):
-            return os.getenv('DATABASE_URL')
+        database_url = os.getenv('DATABASE_URL')
+        if database_url:
+            logger.info("🔗 Найден DATABASE_URL для PostgreSQL")
+            return database_url
         
         # Для локальной разработки
+        logger.warning("⚠️ DATABASE_URL не найден, используем локальный PostgreSQL")
         return "postgresql://postgres:password@localhost:5432/telegram_bot"
     
     @contextmanager
@@ -52,6 +55,7 @@ class DatabaseManager:
     def init_database(self) -> None:
         """Инициализация таблиц базы данных"""
         try:
+            logger.info(f"🔗 Подключаемся к PostgreSQL: {self.connection_string[:50]}...")
             with self.get_connection() as conn:
                 cursor = conn.cursor()
                 
