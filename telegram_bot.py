@@ -54,7 +54,13 @@ class TrustedCurrencyRateBot:
     
     def __init__(self):
         # Инициализация компонентов
-        self.db = DatabaseManager(db_config.path)
+        # Инициализируем БД в зависимости от типа
+        try:
+            # PostgreSQL не требует аргументов
+            self.db = DatabaseManager()
+        except:
+            # SQLite требует путь к файлу
+            self.db = DatabaseManager(db_config.path)
         self.cache = CacheManager(cache_config.directory, cache_config.duration)
         
         # Инициализация обработчиков
