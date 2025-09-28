@@ -670,6 +670,15 @@ class DatabaseManager:
                 
                 conn.commit()
                 logger.info(f"✅ Отслеживание {crypto} для пользователя {user_id}: {'активно' if new_status else 'неактивно'}")
+                
+                # Проверяем, что запись действительно создалась
+                cursor.execute('''
+                    SELECT user_id, crypto, is_active, threshold FROM crypto_tracking
+                    WHERE user_id = ? AND crypto = ?
+                ''', (user_id, crypto))
+                check_result = cursor.fetchone()
+                logger.info(f"🔍 Проверка записи после создания: {check_result}")
+                
                 return new_status
                 
         except Exception as e:
@@ -824,6 +833,19 @@ class DatabaseManager:
                 
                 rows = cursor.fetchall()
                 logger.info(f"🔍 Найдено {len(rows)} активных отслеживаний в базе данных")
+                
+                # Дополнительная отладка
+                if len(rows) == 0:
+                    # Проверяем, есть ли вообще записи в таблице
+                    cursor.execute('SELECT COUNT(*) FROM crypto_tracking')
+                    total_count = cursor.fetchone()[0]
+                    logger.info(f"📊 Всего записей в crypto_tracking: {total_count}")
+                    
+                    if total_count > 0:
+                        # Проверяем, какие записи есть
+                        cursor.execute('SELECT user_id, crypto, is_active FROM crypto_tracking LIMIT 5')
+                        sample_rows = cursor.fetchall()
+                        logger.info(f"📋 Примеры записей: {sample_rows}")
                 
                 result = [
                     {
