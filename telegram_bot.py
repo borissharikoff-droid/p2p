@@ -188,6 +188,16 @@ class TrustedCurrencyRateBot:
                 await self.wallet_handler.handle_wallet_add_message(update, context)
                 return
             
+            # Проверяем, ожидает ли бот переименование кошелька
+            if user.id in self.wallet_handler.waiting_wallet_rename:
+                await self.handle_wallet_rename_message(update, context)
+                return
+            
+            # Проверяем, ожидает ли бот изменение адреса кошелька
+            if user.id in self.wallet_handler.waiting_wallet_readdress:
+                await self.handle_wallet_readdress_message(update, context)
+                return
+            
             # Проверяем, ожидает ли бот ввод порога для отслеживания
             if self.crypto_tracking_handler.is_waiting_threshold_input(user.id):
                 await self.crypto_tracking_handler.handle_tracking_threshold_message(update, context)
@@ -504,14 +514,161 @@ class TrustedCurrencyRateBot:
             await query.answer("❌ Произошла ошибка")
     
     async def handle_wallet_rename_init(self, update: Update, context: ContextTypes.DEFAULT_TYPE, wallet_id: int) -> None:
-        """Заглушка для переименования кошелька"""
+        """Инициализация переименования кошелька"""
         query = update.callback_query
-        await query.answer("Функция в разработке")
+        user = update.effective_user
+        
+        try:
+            # Получаем информацию о кошельке
+            wallet = self.db.get_wallet(user.id, wallet_id)
+            if not wallet:
+                await query.answer("Кошелек не найден", show_alert=True)
+                return
+            
+            text = (
+                f"✏️ <b>Переименование кошелька</b>\n\n"
+                f"Текущий адрес: <code>{wallet['address']}</code>\n"
+                f"Текущее название: {wallet['label'] or '—'}\n\n"
+                f"Отправьте новое название для кошелька:"
+            )
+            
+            keyboard = [[InlineKeyboardButton("⬅️ Назад", callback_data=f"wallet_view_{wallet_id}")]]
+            await query.edit_message_text(text, parse_mode='HTML', reply_markup=InlineKeyboardMarkup(keyboard))
+            
+            # Устанавливаем флаг ожидания переименования
+            self.wallet_handler.waiting_wallet_rename[user.id] = wallet_id
+            
+        except Exception as e:
+            logger.error(f"Ошибка в handle_wallet_rename_init: {e}")
+            await query.answer("Произошла ошибка", show_alert=True)
     
     async def handle_wallet_readdress_init(self, update: Update, context: ContextTypes.DEFAULT_TYPE, wallet_id: int) -> None:
-        """Заглушка для изменения адреса кошелька"""
+        """Инициализация изменения адреса кошелька"""
         query = update.callback_query
-        await query.answer("Функция в разработке")
+        user = update.effective_user
+        
+        try:
+            # Получаем информацию о кошельке
+            wallet = self.db.get_wallet(user.id, wallet_id)
+            if not wallet:
+                await query.answer("Кошелек не найден", show_alert=True)
+                return
+            
+            text = (
+                f"🔁 <b>Изменение адреса кошелька</b>\n\n"
+                f"Текущий адрес: <code>{wallet['address']}</code>\n"
+                f"Название: {wallet['label'] or '—'}\n\n"
+                f"Отправьте новый адрес в формате:\n"
+                f"<code>USDT TRC20 - &lt;новый_адрес&gt;</code>\n\n"
+                f"<b>Пример:</b>\n"
+                f"<code>USDT TRC20 - PY3cykOJTeZUEGPHwSZxe29EdyznOB8X7</code>"
+            )
+            
+            keyboard = [[InlineKeyboardButton("⬅️ Назад", callback_data=f"wallet_view_{wallet_id}")]]
+            await query.edit_message_text(text, parse_mode='HTML', reply_markup=InlineKeyboardMarkup(keyboard))
+            
+            # Устанавливаем флаг ожидания изменения адреса
+            self.wallet_handler.waiting_wallet_readdress[user.id] = wallet_id
+            
+        except Exception as e:
+            logger.error(f"Ошибка в handle_wallet_readdress_init: {e}")
+            await query.answer("Произошла ошибка", show_alert=True)
+    
+    async def handle_wallet_rename_message(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Обработка сообщения для переименования кошелька"""
+        user = update.effective_user
+        text = update.message.text.strip()
+        
+        try:
+            wallet_id = self.wallet_handler.waiting_wallet_rename.get(user.id)
+            if not wallet_id:
+                return
+            
+            # Валидируем новое название
+            from validators import validate_wallet_label
+            try:
+                new_label = validate_wallet_label(text)
+            except Exception as e:
+                await update.message.reply_text(f"❌ {e}")
+                return
+            
+            # Обновляем название кошелька
+            success = self.db.update_wallet(user.id, wallet_id, None, new_label)
+            
+            # Убираем флаг ожидания
+            self.wallet_handler.waiting_wallet_rename.pop(user.id, None)
+            
+            if success:
+                # Показываем успешное сообщение с кнопками
+                keyboard = [
+                    [InlineKeyboardButton("💲 Получить курс", callback_data="get_rate")],
+                    [InlineKeyboardButton("📈 Список лучших курсов", callback_data="get_rates_list")],
+                    [InlineKeyboardButton("💼 USDT кошелек", callback_data="wallets_menu")],
+                    [InlineKeyboardButton("🆘 Поддержка", url=bot_config.support_url)]
+                ]
+                reply_markup = InlineKeyboardMarkup(keyboard)
+                
+                await update.message.reply_text(
+                    f"✅ **Кошелек переименован**\n\nНовое название: {new_label}",
+                    parse_mode='Markdown',
+                    reply_markup=reply_markup
+                )
+            else:
+                await update.message.reply_text("❌ Не удалось переименовать кошелек. Попробуйте позже.")
+                
+        except Exception as e:
+            logger.error(f"Ошибка в handle_wallet_rename_message: {e}")
+            await update.message.reply_text("❌ Произошла ошибка при переименовании кошелька.")
+    
+    async def handle_wallet_readdress_message(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Обработка сообщения для изменения адреса кошелька"""
+        user = update.effective_user
+        text = update.message.text.strip()
+        
+        try:
+            wallet_id = self.wallet_handler.waiting_wallet_readdress.get(user.id)
+            if not wallet_id:
+                return
+            
+            # Парсим новый адрес
+            ok, new_address, _, error = self.wallet_handler.parse_wallet_input(text, label_optional_only=True)
+            if not ok:
+                await update.message.reply_text(error)
+                return
+            
+            # Проверяем дубликаты
+            existing = self.db.list_wallets(user.id)
+            if any(w['address'].lower() == new_address.lower() and w['id'] != wallet_id for w in existing):
+                await update.message.reply_text("⚠️ Такой адрес уже используется в другом кошельке\n\nПопробуйте другой адрес:")
+                return
+            
+            # Обновляем адрес кошелька
+            success = self.db.update_wallet(user.id, wallet_id, new_address, None)
+            
+            # Убираем флаг ожидания
+            self.wallet_handler.waiting_wallet_readdress.pop(user.id, None)
+            
+            if success:
+                # Показываем успешное сообщение с кнопками
+                keyboard = [
+                    [InlineKeyboardButton("💲 Получить курс", callback_data="get_rate")],
+                    [InlineKeyboardButton("📈 Список лучших курсов", callback_data="get_rates_list")],
+                    [InlineKeyboardButton("💼 USDT кошелек", callback_data="wallets_menu")],
+                    [InlineKeyboardButton("🆘 Поддержка", url=bot_config.support_url)]
+                ]
+                reply_markup = InlineKeyboardMarkup(keyboard)
+                
+                await update.message.reply_text(
+                    f"✅ **Адрес кошелька изменен**\n\nНовый адрес: `{new_address}`",
+                    parse_mode='Markdown',
+                    reply_markup=reply_markup
+                )
+            else:
+                await update.message.reply_text("❌ Не удалось изменить адрес кошелька. Попробуйте позже.")
+                
+        except Exception as e:
+            logger.error(f"Ошибка в handle_wallet_readdress_message: {e}")
+            await update.message.reply_text("❌ Произошла ошибка при изменении адреса кошелька.")
     
     async def error_handler(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Обработчик ошибок"""
