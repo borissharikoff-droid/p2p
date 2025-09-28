@@ -23,7 +23,7 @@ from datetime import datetime
 
 # Импорты наших модулей
 from config import bot_config, db_config, cache_config, server_config
-from database import DatabaseManager
+from database_postgres import DatabaseManager
 from cache_manager import CacheManager
 from handlers import RateHandler, WalletHandler, InlineHandler
 from handlers.crypto_tracking_handler import CryptoTrackingHandler
