@@ -148,6 +148,7 @@ class DatabaseManager:
                         threshold REAL DEFAULT 5.0,
                         is_active BOOLEAN DEFAULT TRUE,
                         last_price REAL,
+                        last_notified_price REAL,
                         last_notification TIMESTAMP,
                         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -156,6 +157,15 @@ class DatabaseManager:
                     )
                 ''')
                 
+                # Миграции: добавляем недостающие колонки
+                try:
+                    cursor.execute('''
+                        ALTER TABLE crypto_tracking
+                        ADD COLUMN IF NOT EXISTS last_notified_price REAL
+                    ''')
+                except Exception:
+                    pass
+
                 # Создаем индексы для оптимизации
                 cursor.execute('''
                     CREATE INDEX IF NOT EXISTS idx_crypto_tracking_user_active 
@@ -357,7 +367,7 @@ class DatabaseManager:
             with self.get_connection() as conn:
                 cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
                 cursor.execute('''
-                    SELECT user_id, crypto, threshold, last_price, last_notification
+                    SELECT user_id, crypto, threshold, last_price, last_notified_price, last_notification
                     FROM crypto_tracking
                     WHERE is_active = TRUE
                     ORDER BY user_id, crypto
@@ -401,6 +411,38 @@ class DatabaseManager:
                 
         except Exception as e:
             logger.error(f"Ошибка обновления цены для {crypto}: {e}")
+            return False
+
+    def update_tracking_baseline(self, user_id: int, crypto: str, price: float) -> bool:
+        """Обновить базовую цену (last_notified_price) для накопительного подсчета"""
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute('''
+                    UPDATE crypto_tracking
+                    SET last_notified_price = %s, updated_at = CURRENT_TIMESTAMP
+                    WHERE user_id = %s AND crypto = %s
+                ''', (price, user_id, crypto))
+                conn.commit()
+                return cursor.rowcount > 0
+        except Exception as e:
+            logger.error(f"Ошибка обновления базовой цены: {e}")
+            return False
+
+    def update_tracking_notification(self, user_id: int, crypto: str) -> bool:
+        """Обновить время последнего уведомления"""
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute('''
+                    UPDATE crypto_tracking
+                    SET last_notification = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+                    WHERE user_id = %s AND crypto = %s
+                ''', (user_id, crypto))
+                conn.commit()
+                return cursor.rowcount > 0
+        except Exception as e:
+            logger.error(f"Ошибка обновления времени уведомления: {e}")
             return False
     
     def can_user_request_rate(self, user_id: int, cooldown_seconds: int = 30) -> bool:

@@ -833,7 +833,7 @@ class CryptoTrackingHandler:
             return None
     
     async def check_price_alerts(self) -> None:
-        """Проверить все активные отслеживания и отправить уведомления"""
+        """Проверить активные отслеживания и отправить уведомления по накопительному изменению с последнего уведомления"""
         try:
             logger.info("🔍 Начинаем проверку цен для уведомлений...")
             
@@ -868,32 +868,43 @@ class CryptoTrackingHandler:
                     user_id = tracking['user_id']
                     threshold = tracking['threshold']
                     last_price = tracking['last_price']
+                    baseline_price = tracking.get('last_notified_price') or last_price
                     last_notification = tracking['last_notification']
                     
-                    logger.info(f"👤 Пользователь {user_id}: {crypto}, порог {threshold}%, последняя цена: {last_price}")
+                    logger.info(f"👤 Пользователь {user_id}: {crypto}, порог {threshold}%, последняя цена: {last_price}, база: {baseline_price}")
                     
-                    # Если это первая цена или цена изменилась
+                    # Если это первая цена
                     if last_price is None:
                         logger.info(f"🆕 Первая цена для {crypto}: ${current_price:,.2f}")
                         # Сохраняем первую цену
                         self.db.update_tracking_price(user_id, crypto, current_price)
+                        # Инициализируем базовую цену
+                        if hasattr(self.db, 'update_tracking_baseline'):
+                            self.db.update_tracking_baseline(user_id, crypto, current_price)
                         continue
                     
-                    # Вычисляем изменение в процентах
-                    change_percent = ((current_price - last_price) / last_price) * 100
-                    logger.info(f"📈 {crypto}: изменение {change_percent:+.2f}% (порог: {threshold}%)")
+                    # Вычисляем изменение относительно базовой цены (накопительное)
+                    if not baseline_price:
+                        baseline_price = last_price
+                    change_percent = ((current_price - baseline_price) / baseline_price) * 100
+                    logger.info(f"📈 {crypto}: накопительное изменение {change_percent:+.2f}% от базы (порог: {threshold}%)")
                     
-                    # Проверяем, превышен ли порог
+                    # Проверяем, превышен ли порог накопительно
                     if abs(change_percent) >= threshold:
-                        logger.info(f"🚨 Порог превышен! {crypto}: {change_percent:+.2f}% >= {threshold}%")
+                        logger.info(f"🚨 Порог превышен! {crypto}: {change_percent:+.2f}% >= {threshold}% (накопительно)")
                         
                         # Отправляем уведомление сразу (без защиты от спама)
                         logger.info(f"📤 Отправляем уведомление пользователю {user_id}")
                         await self.send_price_notification(
                             user_id, crypto, current_price, last_price, change_percent, threshold
                         )
+                        # Обновляем базовую цену и отметку уведомления
+                        if hasattr(self.db, 'update_tracking_baseline'):
+                            self.db.update_tracking_baseline(user_id, crypto, current_price)
+                        if hasattr(self.db, 'update_tracking_notification'):
+                            self.db.update_tracking_notification(user_id, crypto)
                     else:
-                        logger.info(f"✅ Изменение {change_percent:+.2f}% меньше порога {threshold}%")
+                        logger.info(f"✅ Накопительное изменение {change_percent:+.2f}% меньше порога {threshold}%")
                     
                     # Обновляем последнюю цену
                     self.db.update_tracking_price(user_id, crypto, current_price)

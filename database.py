@@ -125,6 +125,7 @@ class DatabaseManager:
                         threshold REAL DEFAULT 5.0,
                         is_active BOOLEAN DEFAULT 1,
                         last_price REAL,
+                        last_notified_price REAL,
                         last_notification TIMESTAMP,
                         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -158,6 +159,13 @@ class DatabaseManager:
                 try:
                     cursor.execute('ALTER TABLE users ADD COLUMN total_commands INTEGER DEFAULT 0')
                     logger.info("Добавлена колонка total_commands")
+                except sqlite3.OperationalError:
+                    pass  # Колонка уже существует
+
+                # Миграция: добавляем last_notified_price если её нет
+                try:
+                    cursor.execute('ALTER TABLE crypto_tracking ADD COLUMN last_notified_price REAL')
+                    logger.info("Добавлена колонка last_notified_price в crypto_tracking")
                 except sqlite3.OperationalError:
                     pass  # Колонка уже существует
                 
