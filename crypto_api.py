@@ -295,6 +295,11 @@ class CryptoAPI:
                 }
                 return price
             
+            # Fallback: если API вернул ошибку (например, 429), используем последнюю кэш-цену даже если она протухла
+            if crypto in self.cache:
+                logger.warning(f"Используем устаревшую кэш-цену для {crypto} из-за ошибки API")
+                return self.cache[crypto]['price']
+            
             return None
             
         except Exception as e:
