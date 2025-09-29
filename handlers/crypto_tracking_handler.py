@@ -812,6 +812,28 @@ class CryptoTrackingHandler:
         except Exception as e:
             logger.error(f"Ошибка отправки уведомления: {e}")
     
+    async def _notify_apex_issue(self, trackings: list) -> None:
+        """Уведомить пользователей о проблеме с APEX"""
+        try:
+            if not trackings:
+                return
+                
+            message = "⚠️ APEX не торгуется активно на основных биржах\n"
+            message += "📊 Отслеживание временно приостановлено\n"
+            message += "🔄 Попробуйте позже или выберите другую криптовалюту"
+            
+            for tracking in trackings:
+                user_id = tracking['user_id']
+                if self.application:
+                    await self.application.bot.send_message(
+                        chat_id=user_id,
+                        text=message,
+                        parse_mode='HTML'
+                    )
+                    
+        except Exception as e:
+            logger.error(f"Ошибка уведомления о проблеме APEX: {e}")
+    
     async def get_crypto_price(self, crypto: str) -> Optional[float]:
         """Получить текущую цену криптовалюты"""
         try:
@@ -873,18 +895,19 @@ class CryptoTrackingHandler:
                 # Получаем текущую цену
                 current_price = await get_crypto_price(crypto)
                 
+                # Находим все отслеживания для этой криптовалюты
+                crypto_trackings = [t for t in active_trackings if t['crypto'] == crypto]
+                
                 if not current_price:
                     logger.warning(f"❌ Не удалось получить цену для {crypto}")
-                    # Если это rate limit ошибка, ждем перед следующей попыткой
-                    if crypto == 'APEX':  # Специальная обработка для APEX
-                        logger.info(f"⏳ Ждем 5 секунд перед следующей проверкой из-за rate limit...")
-                        await asyncio.sleep(5)
+                    # Специальная обработка для APEX
+                    if crypto == 'APEX':
+                        logger.info(f"⚠️ APEX не торгуется активно на основных биржах, пропускаем проверку")
+                        # Отправляем уведомление пользователям о проблеме с APEX
+                        await self._notify_apex_issue(crypto_trackings)
                     continue
                 
                 logger.info(f"✅ {crypto}: ${format_crypto_price(current_price)}")
-                
-                # Находим все отслеживания для этой криптовалюты
-                crypto_trackings = [t for t in active_trackings if t['crypto'] == crypto]
                 
                 for tracking in crypto_trackings:
                     user_id = tracking['user_id']
