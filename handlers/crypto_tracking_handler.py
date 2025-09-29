@@ -29,6 +29,19 @@ def get_moscow_time() -> datetime:
     return datetime.now(moscow_tz)
 
 
+def format_crypto_price(price: float) -> str:
+    """Форматировать цену криптовалюты с учетом очень маленьких значений"""
+    if price < 0.01:
+        # Для очень маленьких цен (как PEPE) используем научную нотацию
+        return f"{price:.2e}"
+    elif price < 1:
+        # Для цен меньше 1 используем больше знаков после запятой
+        return f"{price:.6f}".rstrip('0').rstrip('.')
+    else:
+        # Для обычных цен используем стандартное форматирование
+        return f"{price:,.2f}"
+
+
 class CryptoTrackingHandler:
     """Обработчик отслеживания криптовалют"""
     
@@ -781,8 +794,9 @@ class CryptoTrackingHandler:
                 color = "🔴"
                 change_symbol = ""
             
-            # Форматируем сообщение
-            message = f"{color}${crypto}: {current_price:,.2f} ({change_symbol}{change_percent:.2f}%)\n"
+            # Форматируем сообщение с учетом очень маленьких цен
+            price_str = format_crypto_price(current_price)
+            message = f"{color}${crypto}: {price_str} ({change_symbol}{change_percent:.2f}%)\n"
             message += f"📊 Порог: {threshold}% • {info['name']}"
             
             # Отправляем уведомление
@@ -823,7 +837,11 @@ class CryptoTrackingHandler:
                 'LTC': 72.0,
                 'BCH': 240.0,
                 'LINK': 14.5,
-                'UNI': 6.2
+                'UNI': 6.2,
+                'PEPE': 0.00000123,  # Примерная цена PEPE
+                'APEX': 0.00045,     # Примерная цена APEX
+                'SHIB': 0.0000089,   # Примерная цена SHIB
+                'FLOKI': 0.000012    # Примерная цена FLOKI
             }
             
             return mock_prices.get(crypto.upper())
@@ -857,9 +875,13 @@ class CryptoTrackingHandler:
                 
                 if not current_price:
                     logger.warning(f"❌ Не удалось получить цену для {crypto}")
+                    # Если это rate limit ошибка, ждем перед следующей попыткой
+                    if crypto == 'APEX':  # Специальная обработка для APEX
+                        logger.info(f"⏳ Ждем 5 секунд перед следующей проверкой из-за rate limit...")
+                        await asyncio.sleep(5)
                     continue
                 
-                logger.info(f"✅ {crypto}: ${current_price:,.2f}")
+                logger.info(f"✅ {crypto}: ${format_crypto_price(current_price)}")
                 
                 # Находим все отслеживания для этой криптовалюты
                 crypto_trackings = [t for t in active_trackings if t['crypto'] == crypto]

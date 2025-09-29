@@ -284,16 +284,25 @@ class CryptoAPI:
                 if datetime.now() - cached_data['timestamp'] < timedelta(seconds=self.cache_duration):
                     return cached_data['price']
             
-            # Получаем цену из API
-            price = await self._fetch_price_from_api(crypto)
-            
-            if price:
-                # Сохраняем в кэш
-                self.cache[crypto] = {
-                    'price': price,
-                    'timestamp': datetime.now()
-                }
-                return price
+            # Получаем цену из API с retry механизмом
+            max_retries = 3
+            for attempt in range(max_retries):
+                price = await self._fetch_price_from_api(crypto)
+                
+                if price:
+                    # Сохраняем в кэш
+                    self.cache[crypto] = {
+                        'price': price,
+                        'timestamp': datetime.now()
+                    }
+                    return price
+                
+                # Если это не последняя попытка, ждем перед повтором
+                if attempt < max_retries - 1:
+                    import asyncio
+                    wait_time = (attempt + 1) * 2  # 2, 4, 6 секунд
+                    logger.info(f"Повторная попытка {attempt + 2}/{max_retries} для {crypto} через {wait_time}с...")
+                    await asyncio.sleep(wait_time)
             
             return None
             
@@ -320,8 +329,16 @@ class CryptoAPI:
             
             if not self.session:
                 self.session = aiohttp.ClientSession(
-                    timeout=aiohttp.ClientTimeout(total=10)
+                    timeout=aiohttp.ClientTimeout(total=15),
+                    headers={
+                        'User-Agent': 'TelegramBot/1.0',
+                        'Accept': 'application/json'
+                    }
                 )
+            
+            # Добавляем задержку для избежания rate limiting
+            import asyncio
+            await asyncio.sleep(0.1)  # 100ms задержка между запросами
             
             async with self.session.get(url, params=params) as response:
                 if response.status == 200:
@@ -331,6 +348,11 @@ class CryptoAPI:
                     else:
                         logger.warning(f"Криптовалюта {crypto} не найдена в ответе API")
                         return None
+                elif response.status == 429:
+                    # Rate limit exceeded - ждем дольше
+                    logger.warning(f"Rate limit exceeded для {crypto}, ждем 2 секунды...")
+                    await asyncio.sleep(2)
+                    return None
                 else:
                     logger.error(f"Ошибка API CoinGecko: {response.status}")
                     return None
@@ -364,8 +386,16 @@ class CryptoAPI:
             
             if not self.session:
                 self.session = aiohttp.ClientSession(
-                    timeout=aiohttp.ClientTimeout(total=10)
+                    timeout=aiohttp.ClientTimeout(total=15),
+                    headers={
+                        'User-Agent': 'TelegramBot/1.0',
+                        'Accept': 'application/json'
+                    }
                 )
+            
+            # Добавляем задержку для избежания rate limiting
+            import asyncio
+            await asyncio.sleep(0.2)  # 200ms задержка для множественных запросов
             
             async with self.session.get(url, params=params) as response:
                 if response.status == 200:
@@ -386,6 +416,11 @@ class CryptoAPI:
                             }
                     
                     return result
+                elif response.status == 429:
+                    # Rate limit exceeded - ждем дольше
+                    logger.warning(f"Rate limit exceeded для множественных запросов, ждем 3 секунды...")
+                    await asyncio.sleep(3)
+                    return {}
                 else:
                     logger.error(f"Ошибка API CoinGecko: {response.status}")
                     return {}
