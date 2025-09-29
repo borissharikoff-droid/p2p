@@ -868,7 +868,7 @@ class CryptoTrackingHandler:
                     user_id = tracking['user_id']
                     threshold = tracking['threshold']
                     last_price = tracking['last_price']
-                    baseline_price = tracking.get('last_notified_price') or last_price
+                    baseline_price = tracking.get('last_notified_price')
                     last_notification = tracking['last_notification']
                     
                     logger.info(f"👤 Пользователь {user_id}: {crypto}, порог {threshold}%, последняя цена: {last_price}, база: {baseline_price}")
@@ -883,9 +883,14 @@ class CryptoTrackingHandler:
                             self.db.update_tracking_baseline(user_id, crypto, current_price)
                         continue
                     
-                    # Вычисляем изменение относительно базовой цены (накопительное)
-                    if not baseline_price:
+                    # Если базовая цена еще не установлена, зафиксируем ее ОДИН РАЗ
+                    if baseline_price is None:
                         baseline_price = last_price
+                        if hasattr(self.db, 'update_tracking_baseline') and last_price is not None:
+                            self.db.update_tracking_baseline(user_id, crypto, last_price)
+                            logger.info(f"📌 Зафиксирована базовая цена для {crypto}: {last_price}")
+                    
+                    # Вычисляем изменение относительно базовой цены (накопительное)
                     change_percent = ((current_price - baseline_price) / baseline_price) * 100
                     logger.info(f"📈 {crypto}: накопительное изменение {change_percent:+.2f}% от базы (порог: {threshold}%)")
                     
