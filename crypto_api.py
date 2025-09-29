@@ -76,7 +76,7 @@ class CryptoAPI:
             'ZEC': 'zcash',
             
             # Дополнительные криптовалюты
-            'APEX': 'apex-coin',
+            'APEX': 'apex-token',
             'APT': 'aptos',
             'ARB': 'arbitrum',
             'OP': 'optimism',
@@ -411,7 +411,7 @@ class CryptoAPI:
                 'BCH': 'BCHUSDT', 'LINK': 'LINKUSDT', 'UNI': 'UNIUSDT', 'ATOM': 'ATOMUSDT', 'AVAX': 'AVAXUSDT',
                 'SHIB': 'SHIBUSDT', 'PEPE': 'PEPEUSDT', 'TRX': 'TRXUSDT', 'ETC': 'ETCUSDT', 'XMR': 'XMRUSDT',
                 'ZEC': 'ZECUSDT', 'XLM': 'XLMUSDT', 'FIL': 'FILUSDT', 'ICP': 'ICPUSDT', 'NEAR': 'NEARUSDT',
-                'APEX': 'APEXUSDT', 'FLOKI': 'FLOKIUSDT', 'BONK': 'BONKUSDT', 'WIF': 'WIFUSDT'
+                'FLOKI': 'FLOKIUSDT', 'BONK': 'BONKUSDT', 'WIF': 'WIFUSDT'
             }
             binance_symbol = symbol_map.get(crypto)
             if not binance_symbol:
@@ -437,18 +437,74 @@ class CryptoAPI:
         """Попробовать получить цену из альтернативных источников"""
         try:
             if crypto == 'APEX':
-                # Пробуем получить цену APEX из CoinMarketCap через их API
-                # Но для простоты пока используем статичную цену
                 logger.info("Пробуем альтернативные источники для APEX...")
                 
-                # Можно добавить другие API здесь
-                # Например, CoinMarketCap, CryptoCompare и т.д.
+                # Пробуем получить цену APEX из Bybit (где он торгуется)
+                bybit_price = await self._fetch_price_from_bybit(crypto)
+                if bybit_price:
+                    return bybit_price
                 
-                return None  # Пока возвращаем None, чтобы использовать статичную цену
+                # Если Bybit не сработал, пробуем MEXC
+                mexc_price = await self._fetch_price_from_mexc(crypto)
+                if mexc_price:
+                    return mexc_price
+                
+                return None  # Если ничего не сработало, используем статичную цену
                 
         except Exception as e:
             logger.error(f"Ошибка при запросе к альтернативным источникам: {e}")
             return None
+    
+    async def _fetch_price_from_bybit(self, crypto: str) -> Optional[float]:
+        """Получить цену из Bybit API"""
+        try:
+            if crypto == 'APEX':
+                url = "https://api.bybit.com/v5/market/tickers"
+                params = {'category': 'spot', 'symbol': 'APEXUSDT'}
+                
+                if not self.session:
+                    self.session = aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=10))
+                
+                async with self.session.get(url, params=params) as response:
+                    if response.status == 200:
+                        data = await response.json()
+                        if data.get('retCode') == 0 and data.get('result', {}).get('list'):
+                            price_str = data['result']['list'][0].get('lastPrice')
+                            if price_str:
+                                logger.info(f"Получена цена APEX из Bybit: {price_str}")
+                                return float(price_str)
+                    else:
+                        logger.warning(f"Bybit API вернул статус: {response.status}")
+                        
+        except Exception as e:
+            logger.error(f"Ошибка при запросе к Bybit: {e}")
+        
+        return None
+    
+    async def _fetch_price_from_mexc(self, crypto: str) -> Optional[float]:
+        """Получить цену из MEXC API"""
+        try:
+            if crypto == 'APEX':
+                url = "https://api.mexc.com/api/v3/ticker/price"
+                params = {'symbol': 'APEXUSDT'}
+                
+                if not self.session:
+                    self.session = aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=10))
+                
+                async with self.session.get(url, params=params) as response:
+                    if response.status == 200:
+                        data = await response.json()
+                        price_str = data.get('price')
+                        if price_str:
+                            logger.info(f"Получена цена APEX из MEXC: {price_str}")
+                            return float(price_str)
+                    else:
+                        logger.warning(f"MEXC API вернул статус: {response.status}")
+                        
+        except Exception as e:
+            logger.error(f"Ошибка при запросе к MEXC: {e}")
+        
+        return None
     
     async def get_multiple_prices(self, cryptos: list) -> Dict[str, float]:
         """Получить цены для нескольких криптовалют одновременно"""

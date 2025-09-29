@@ -818,9 +818,9 @@ class CryptoTrackingHandler:
             if not trackings:
                 return
                 
-            message = "⚠️ APEX не торгуется активно на основных биржах\n"
-            message += "📊 Отслеживание временно приостановлено\n"
-            message += "🔄 Попробуйте позже или выберите другую криптовалюту"
+            message = "⚠️ APEX (ApeX Token) недоступен в основных API\n"
+            message += "📊 Пробуем альтернативные источники (Bybit, MEXC)\n"
+            message += "🔄 Если проблема сохраняется, попробуйте другую криптовалюту"
             
             for tracking in trackings:
                 user_id = tracking['user_id']
