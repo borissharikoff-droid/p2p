@@ -284,8 +284,10 @@ class CryptoAPI:
                 if datetime.now() - cached_data['timestamp'] < timedelta(seconds=self.cache_duration):
                     return cached_data['price']
             
-            # Получаем цену из API
+            # Получаем цену из API (CoinGecko → Binance fallback)
             price = await self._fetch_price_from_api(crypto)
+            if price is None:
+                price = await self._fetch_price_from_binance(crypto)
             
             if price:
                 # Сохраняем в кэш
@@ -345,6 +347,37 @@ class CryptoAPI:
             return None
         except Exception as e:
             logger.error(f"Ошибка при запросе к API: {e}")
+            return None
+
+    async def _fetch_price_from_binance(self, crypto: str) -> Optional[float]:
+        """Запасной провайдер: Binance public API (без ключа). Возвращает цену в USDT."""
+        try:
+            # Соответствие символов Binance. Большинство мажоров совпадает с добавлением USDT
+            symbol_map = {
+                'BTC': 'BTCUSDT', 'ETH': 'ETHUSDT', 'BNB': 'BNBUSDT', 'SOL': 'SOLUSDT', 'ADA': 'ADAUSDT',
+                'XRP': 'XRPUSDT', 'DOT': 'DOTUSDT', 'DOGE': 'DOGEUSDT', 'MATIC': 'MATICUSDT', 'LTC': 'LTCUSDT',
+                'BCH': 'BCHUSDT', 'LINK': 'LINKUSDT', 'UNI': 'UNIUSDT', 'ATOM': 'ATOMUSDT', 'AVAX': 'AVAXUSDT',
+                'SHIB': 'SHIBUSDT', 'PEPE': 'PEPEUSDT', 'TRX': 'TRXUSDT', 'ETC': 'ETCUSDT', 'XMR': 'XMRUSDT',
+                'ZEC': 'ZECUSDT', 'XLM': 'XLMUSDT', 'FIL': 'FILUSDT', 'ICP': 'ICPUSDT', 'NEAR': 'NEARUSDT'
+            }
+            binance_symbol = symbol_map.get(crypto)
+            if not binance_symbol:
+                return None
+            url = "https://api.binance.com/api/v3/ticker/price"
+            params = { 'symbol': binance_symbol }
+            if not self.session:
+                self.session = aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=10))
+            async with self.session.get(url, params=params) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    price_str = data.get('price')
+                    if price_str is not None:
+                        return float(price_str)
+                else:
+                    logger.error(f"Ошибка API Binance: {response.status}")
+            return None
+        except Exception as e:
+            logger.error(f"Ошибка при запросе к Binance: {e}")
             return None
     
     async def get_multiple_prices(self, cryptos: list) -> Dict[str, float]:
