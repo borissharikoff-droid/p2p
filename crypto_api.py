@@ -21,6 +21,9 @@ class CryptoAPI:
         self.session: Optional[aiohttp.ClientSession] = None
         self.cache: Dict[str, Dict[str, Any]] = {}
         self.cache_duration = 60  # Кэш на 1 минуту
+        self.symbols_cache: Dict[str, Any] = {}  # Кэш для списков символов
+        self.symbols_cache_duration = 3600  # Кэш списков символов на 1 час
+        
         # Явные сопоставления контрактов для неоднозначных токенов
         # Ключи: тикер; Значение: dict(platform, address)
         # platform — платформа CoinGecko (ethereum, arbitrum-one, bsc, polygon-pos, solana, и т.д.)
@@ -288,6 +291,11 @@ class CryptoAPI:
         """Получить текущую цену криптовалюты"""
         try:
             crypto = crypto.upper()
+            
+            # Проверяем, поддерживается ли символ
+            if not await self.is_symbol_supported(crypto):
+                logger.warning(f"Неподдерживаемая криптовалюта: {crypto}")
+                return None
             
             # Проверяем кэш
             if crypto in self.cache:
@@ -655,6 +663,144 @@ class CryptoAPI:
         """Очистить кэш"""
         self.cache.clear()
         logger.info("Кэш цен криптовалют очищен")
+    
+    async def get_supported_symbols(self) -> set:
+        """Получить список поддерживаемых символов с бирж"""
+        try:
+            # Проверяем кэш
+            if 'symbols' in self.symbols_cache:
+                cached_data = self.symbols_cache['symbols']
+                if datetime.now() - cached_data['timestamp'] < timedelta(seconds=self.symbols_cache_duration):
+                    return cached_data['symbols']
+            
+            # Получаем символы с разных бирж
+            symbols = set()
+            
+            # 1. Bybit (топ-500+ монет)
+            bybit_symbols = await self._get_bybit_symbols()
+            if bybit_symbols:
+                symbols.update(bybit_symbols)
+                logger.info(f"Получено {len(bybit_symbols)} символов с Bybit")
+            
+            # 2. Binance (дополнительные символы)
+            binance_symbols = await self._get_binance_symbols()
+            if binance_symbols:
+                symbols.update(binance_symbols)
+                logger.info(f"Получено {len(binance_symbols)} символов с Binance")
+            
+            # 3. MEXC (еще больше монет)
+            mexc_symbols = await self._get_mexc_symbols()
+            if mexc_symbols:
+                symbols.update(mexc_symbols)
+                logger.info(f"Получено {len(mexc_symbols)} символов с MEXC")
+            
+            # 4. Добавляем наши базовые символы
+            symbols.update(self.crypto_ids.keys())
+            
+            # Сохраняем в кэш
+            self.symbols_cache['symbols'] = {
+                'symbols': symbols,
+                'timestamp': datetime.now()
+            }
+            
+            logger.info(f"Всего поддерживаемых символов: {len(symbols)}")
+            return symbols
+            
+        except Exception as e:
+            logger.error(f"Ошибка получения списка символов: {e}")
+            # Возвращаем базовый список в случае ошибки
+            return set(self.crypto_ids.keys())
+    
+    async def _get_bybit_symbols(self) -> set:
+        """Получить список символов с Bybit"""
+        try:
+            if not self.session:
+                self.session = aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=10))
+            
+            url = "https://api.bybit.com/v5/market/instruments-info"
+            params = {'category': 'spot'}
+            
+            async with self.session.get(url, params=params) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    if data.get('retCode') == 0 and data.get('result', {}).get('list'):
+                        symbols = set()
+                        for item in data['result']['list']:
+                            symbol = item.get('symbol', '')
+                            if symbol.endswith('USDT'):
+                                base_symbol = symbol[:-4]  # Убираем USDT
+                                symbols.add(base_symbol)
+                        return symbols
+                else:
+                    logger.warning(f"Bybit API вернул статус: {response.status}")
+        except Exception as e:
+            logger.error(f"Ошибка получения символов с Bybit: {e}")
+        return set()
+    
+    async def _get_binance_symbols(self) -> set:
+        """Получить список символов с Binance"""
+        try:
+            if not self.session:
+                self.session = aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=10))
+            
+            url = "https://api.binance.com/api/v3/exchangeInfo"
+            
+            async with self.session.get(url) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    symbols = set()
+                    for symbol_info in data.get('symbols', []):
+                        symbol = symbol_info.get('symbol', '')
+                        if symbol.endswith('USDT') and symbol_info.get('status') == 'TRADING':
+                            base_symbol = symbol[:-4]  # Убираем USDT
+                            symbols.add(base_symbol)
+                    return symbols
+                else:
+                    logger.warning(f"Binance API вернул статус: {response.status}")
+        except Exception as e:
+            logger.error(f"Ошибка получения символов с Binance: {e}")
+        return set()
+    
+    async def _get_mexc_symbols(self) -> set:
+        """Получить список символов с MEXC"""
+        try:
+            if not self.session:
+                self.session = aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=10))
+            
+            url = "https://api.mexc.com/api/v3/exchangeInfo"
+            
+            async with self.session.get(url) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    symbols = set()
+                    for symbol_info in data.get('symbols', []):
+                        symbol = symbol_info.get('symbol', '')
+                        if symbol.endswith('USDT') and symbol_info.get('status') == 'ENABLED':
+                            base_symbol = symbol[:-4]  # Убираем USDT
+                            symbols.add(base_symbol)
+                    return symbols
+                else:
+                    logger.warning(f"MEXC API вернул статус: {response.status}")
+        except Exception as e:
+            logger.error(f"Ошибка получения символов с MEXC: {e}")
+        return set()
+    
+    async def is_symbol_supported(self, symbol: str) -> bool:
+        """Проверить, поддерживается ли символ"""
+        try:
+            symbol = symbol.upper()
+            
+            # Сначала проверяем базовый список
+            if symbol in self.crypto_ids:
+                return True
+            
+            # Затем проверяем динамический список с бирж
+            supported_symbols = await self.get_supported_symbols()
+            return symbol in supported_symbols
+            
+        except Exception as e:
+            logger.error(f"Ошибка проверки поддержки символа {symbol}: {e}")
+            return False
 
 
 # Глобальный экземпляр API
@@ -671,3 +817,15 @@ async def get_multiple_crypto_prices(cryptos: list) -> Dict[str, float]:
     """Удобная функция для получения цен нескольких криптовалют"""
     async with crypto_api as api:
         return await api.get_multiple_prices(cryptos)
+
+
+async def get_supported_symbols() -> set:
+    """Удобная функция для получения списка поддерживаемых символов"""
+    async with crypto_api as api:
+        return await api.get_supported_symbols()
+
+
+async def is_symbol_supported(symbol: str) -> bool:
+    """Удобная функция для проверки поддержки символа"""
+    async with crypto_api as api:
+        return await api.is_symbol_supported(symbol)

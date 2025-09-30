@@ -27,7 +27,7 @@ def build_menu(buttons, n_cols=2):
         row = buttons[i:i + n_cols]
         menu.append(row)
     return menu
-from crypto_api import get_crypto_price, get_multiple_crypto_prices, crypto_api
+from crypto_api import get_crypto_price, get_multiple_crypto_prices, crypto_api, is_symbol_supported
 
 logger = logging.getLogger(__name__)
 
@@ -656,8 +656,8 @@ class CryptoTrackingHandler:
             # Ищем криптовалюту
             found_cryptos = []
             
-            # Проверяем, есть ли криптовалюта в API
-            if text in crypto_api.crypto_ids:
+            # Проверяем, поддерживается ли криптовалюта (динамический список с бирж)
+            if await is_symbol_supported(text):
                 # Создаем базовую информацию для найденной криптовалюты
                 crypto_info = {
                     'name': text,  # Будет заменено на реальное название при получении цены
