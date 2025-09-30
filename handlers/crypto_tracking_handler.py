@@ -13,12 +13,20 @@ import pytz
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
-from telegram.helpers import build_menu
 
 from database import DatabaseManager
 from exceptions import ValidationError, DatabaseError
 from validators import validate_crypto_symbol, validate_threshold
 from config import bot_config
+
+
+def build_menu(buttons, n_cols=2):
+    """Создает меню из кнопок с указанным количеством колонок"""
+    menu = []
+    for i in range(0, len(buttons), n_cols):
+        row = buttons[i:i + n_cols]
+        menu.append(row)
+    return menu
 from crypto_api import get_crypto_price, get_multiple_crypto_prices, crypto_api
 
 logger = logging.getLogger(__name__)
