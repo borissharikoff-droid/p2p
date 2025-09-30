@@ -185,7 +185,8 @@ class RateHandler:
                 
                 # Логируем запрос курса в БД
                 exchange_data = {
-                    'avg_rate': avg_rate
+                    'avg_buy_rate': avg_buy_rate,
+                    'avg_sell_rate': avg_sell_rate
                 }
                 self.db.log_exchange_request(user.id, exchange_data)
                 
