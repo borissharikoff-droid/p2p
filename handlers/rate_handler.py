@@ -104,24 +104,21 @@ class RateHandler:
             
             await query.edit_message_text("🔄 Получаю актуальный курс USDT...")
             
-            # Сначала пытаемся получить данные из кэша
-            cached_data = self.cache.get_cached_rates()
-            cache_info = self.cache.get_cache_info()
+            # Принудительно получаем свежие данные (игнорируем кэш при обновлении)
+            result = self.parser.run()
             
-            if cached_data:
-                # Используем кэшированные данные
-                data = cached_data
-                is_cached = True
-                logger.info("Используем кэшированные данные курсов")
-            else:
-                # Получаем свежие данные от парсера
-                result = self.parser.run()
-                
-                if not result.get("success"):
+            if not result.get("success"):
+                # Если парсер не сработал, пробуем кэш как fallback
+                cached_data = self.cache.get_cached_rates()
+                if cached_data:
+                    data = cached_data
+                    is_cached = True
+                    logger.info("Парсер недоступен, используем кэшированные данные")
+                else:
                     error_msg = f"❌ Ошибка получения данных: {result.get('error', 'Неизвестная ошибка')}"
                     await query.edit_message_text(error_msg)
                     return
-                
+            else:
                 data = result["data"]
                 is_cached = False
                 
@@ -137,12 +134,18 @@ class RateHandler:
                 rates = [ex['rate'] for ex in data]
                 avg_rate = sum(rates) / len(rates)
                 
+                # Логируем информацию о курсах для отладки
+                logger.info(f"Парсинг курсов: найдено {len(data)} обменников")
+                logger.info(f"Диапазон курсов: {min(rates):.4f} - {max(rates):.4f} RUB")
+                logger.info(f"Средний курс: {avg_rate:.4f} RUB")
+                logger.info(f"Топ-3 обменника: {[f'{ex[\"name\"]}: {ex[\"rate\"]:.4f}' for ex in data[:3]]}")
+                
                 # Формируем сообщение в указанном формате
                 message = f"💱 USDT/RUB • Актуальные курсы\n"
                 message += f"━━━━━━━━━━━━━━━━━\n"
                 message += f"💰 Средний курс: {avg_rate:.2f}₽ за 1 USDT\n"
-                message += f"📈 Курс продажи: {best_exchanger['rate']:.2f}₽ за 1 USDT\n"
-                message += f"📉 Курс покупки: {min(rates):.2f}₽ за 1 USDT\n"
+                message += f"📈 Курс продажи: {min(rates):.2f}₽ за 1 USDT\n"
+                message += f"📉 Курс покупки: {max(rates):.2f}₽ за 1 USDT\n"
                 message += f"━━━━━━━━━━━━━━━━━\n"
                 message += f"🕘 Обновлено: {get_moscow_time().strftime('%H:%M • %d.%m.%Y')}"
                 
