@@ -93,8 +93,8 @@ class WalletHandler:
             
             # Всегда показываем одинаковый текст
             text = (
-                "💼 <b>USDT-кошельки</b>\n\n"
-                "Добавьте адрес кошелька для приема платежей и создания чеков.\n\n"
+                "💼 <b>Кошельки USDT</b>\n\n"
+                "Добавьте адрес кошелька для приёма платежей и создания чеков.\n\n"
                 "<b>Добавление кошелька:</b>\n"
                 "<code>USDT - &lt;адрес&gt; [Название]</code>\n\n"
                 "<b>Пример:</b>\n"
@@ -105,8 +105,8 @@ class WalletHandler:
             )
             
             if not wallets:
-                keyboard = [[InlineKeyboardButton("➕ Добавить кошелек", callback_data="wallet_add")],
-                            [InlineKeyboardButton("🏠 Назад", callback_data="back_to_menu")]]
+                keyboard = [[InlineKeyboardButton("➕ Добавить кошелёк", callback_data="wallet_add")],
+                            [InlineKeyboardButton("🏠 Главное меню", callback_data="back_to_menu")]]
                 return await query.edit_message_text(text, parse_mode='HTML', reply_markup=InlineKeyboardMarkup(keyboard))
 
             # Отрисуем список кошельков кнопками
@@ -114,8 +114,8 @@ class WalletHandler:
             for w in wallets:
                 title = w['label'] if w['label'] else w['address']
                 buttons.append([InlineKeyboardButton(title, callback_data=f"wallet_view_{w['id']}")])
-            buttons.append([InlineKeyboardButton("➕ Добавить кошелек", callback_data="wallet_add")])
-            buttons.append([InlineKeyboardButton("🏠 Назад", callback_data="back_to_menu")])
+            buttons.append([InlineKeyboardButton("➕ Добавить кошелёк", callback_data="wallet_add")])
+            buttons.append([InlineKeyboardButton("🏠 Главное меню", callback_data="back_to_menu")])
             await query.edit_message_text(text, parse_mode='HTML', reply_markup=InlineKeyboardMarkup(buttons))
             
             # Логируем команду
@@ -145,7 +145,7 @@ class WalletHandler:
             )
             keyboard = [
                 [InlineKeyboardButton("✏️ Переименовать", callback_data=f"wallet_rename_{w['id']}")],
-                [InlineKeyboardButton("🔁 Изменить адрес", callback_data=f"wallet_readdress_{w['id']}")],
+                [InlineKeyboardButton("🔁 Сменить адрес", callback_data=f"wallet_readdress_{w['id']}")],
                 [InlineKeyboardButton("🗑️ Удалить", callback_data=f"wallet_delete_{w['id']}")],
                 [InlineKeyboardButton("⬅️ Назад", callback_data="wallets_menu")]
             ]
@@ -207,9 +207,10 @@ class WalletHandler:
             if saved:
                 # Показываем кнопки из /start после успешного добавления
                 keyboard = [
-                    [InlineKeyboardButton("💲 Получить курс", callback_data="get_rate")],
-                    [InlineKeyboardButton("📈 Список лучших курсов", callback_data="get_rates_list")],
-                    [InlineKeyboardButton("💼 USDT кошелек", callback_data="wallets_menu")],
+                    [InlineKeyboardButton("💲 Текущий курс", callback_data="get_rate")],
+                    [InlineKeyboardButton("📈 Топ обменников", callback_data="get_rates_list")],
+                    [InlineKeyboardButton("📊 Отслеживание цен", callback_data="tracking_menu")],
+                    [InlineKeyboardButton("💼 Кошельки USDT", callback_data="wallets_menu")],
                     [InlineKeyboardButton("🆘 Поддержка", url=bot_config.support_url)]
                 ]
                 reply_markup = InlineKeyboardMarkup(keyboard)
@@ -261,9 +262,10 @@ class WalletHandler:
             if success:
                 # Показываем сообщение об успешном удалении с кнопками из /start
                 keyboard = [
-                    [InlineKeyboardButton("💲 Получить курс", callback_data="get_rate")],
-                    [InlineKeyboardButton("📈 Список лучших курсов", callback_data="get_rates_list")],
-                    [InlineKeyboardButton("💼 USDT кошелек", callback_data="wallets_menu")],
+                    [InlineKeyboardButton("💲 Текущий курс", callback_data="get_rate")],
+                    [InlineKeyboardButton("📈 Топ обменников", callback_data="get_rates_list")],
+                    [InlineKeyboardButton("📊 Отслеживание цен", callback_data="tracking_menu")],
+                    [InlineKeyboardButton("💼 Кошельки USDT", callback_data="wallets_menu")],
                     [InlineKeyboardButton("🆘 Поддержка", url=bot_config.support_url)]
                 ]
                 reply_markup = InlineKeyboardMarkup(keyboard)

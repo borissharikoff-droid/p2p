@@ -148,9 +148,10 @@ class RateHandler:
                 
                 # Создаем клавиатуру с кнопками
                 keyboard = [
-                    [InlineKeyboardButton("♻️ Обновить", callback_data="get_rate")],
-                    [InlineKeyboardButton("📈 Список лучших курсов", callback_data="get_rates_list")],
-                    [InlineKeyboardButton("💼 USDT кошелек", callback_data="wallets_menu")],
+                    [InlineKeyboardButton("♻️ Обновить курс", callback_data="get_rate")],
+                    [InlineKeyboardButton("📈 Топ обменников", callback_data="get_rates_list")],
+                    [InlineKeyboardButton("📊 Отслеживание цен", callback_data="tracking_menu")],
+                    [InlineKeyboardButton("💼 Кошельки USDT", callback_data="wallets_menu")],
                     [InlineKeyboardButton("🆘 Поддержка", url=bot_config.support_url)]
                 ]
                 reply_markup = InlineKeyboardMarkup(keyboard)
@@ -238,8 +239,9 @@ class RateHandler:
                 
                 # Создаем клавиатуру с кнопками
                 keyboard = [
-                    [InlineKeyboardButton("💲 Получить курс", callback_data="get_rate")],
-                    [InlineKeyboardButton("💼 USDT кошелек", callback_data="wallets_menu")],
+                    [InlineKeyboardButton("💲 Текущий курс", callback_data="get_rate")],
+                    [InlineKeyboardButton("📊 Отслеживание цен", callback_data="tracking_menu")],
+                    [InlineKeyboardButton("💼 Кошельки USDT", callback_data="wallets_menu")],
                     [InlineKeyboardButton("🆘 Поддержка", url=bot_config.support_url)]
                 ]
                 reply_markup = InlineKeyboardMarkup(keyboard)

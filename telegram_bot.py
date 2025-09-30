@@ -97,14 +97,14 @@ class TrustedCurrencyRateBot:
             self.db.start_session(user.id, user.username)
             
             # Приветственное сообщение
-            welcome_message = "💱 <b>DOX // P2P</b>\n\nБот показывает реальный курс USDT анализируя общую ситуацию на биржах."
+            welcome_message = "💱 <b>DOX // P2P</b>\n\nПоказываем актуальный курс USDT и топ обменников."
             
             # Создаем клавиатуру с кнопками
             keyboard = [
-                [InlineKeyboardButton("💲 Получить курс", callback_data="get_rate")],
-                [InlineKeyboardButton("📈 Список лучших курсов", callback_data="get_rates_list")],
-                [InlineKeyboardButton("📊 Отслеживание курса", callback_data="tracking_menu")],
-                [InlineKeyboardButton("💼 USDT кошелек", callback_data="wallets_menu")],
+                [InlineKeyboardButton("💲 Текущий курс", callback_data="get_rate")],
+                [InlineKeyboardButton("📈 Топ обменников", callback_data="get_rates_list")],
+                [InlineKeyboardButton("📊 Отслеживание цен", callback_data="tracking_menu")],
+                [InlineKeyboardButton("💼 Кошельки USDT", callback_data="wallets_menu")],
                 [InlineKeyboardButton("🆘 Поддержка", url=bot_config.support_url)]
             ]
             reply_markup = InlineKeyboardMarkup(keyboard)
@@ -160,8 +160,6 @@ class TrustedCurrencyRateBot:
             elif query.data.startswith("wallet_delete_"):
                 wallet_id = int(query.data.split("_")[-1])
                 await self.wallet_handler.handle_wallet_delete_confirm(update, context, wallet_id)
-            elif query.data == "wallet_delete_no":
-                await self.wallet_handler.handle_wallets_menu(update, context)
             elif query.data == "back_to_menu":
                 await self.handle_back_to_menu(update, context)
             elif query.data.startswith("tracking_"):
@@ -447,14 +445,14 @@ class TrustedCurrencyRateBot:
         
         try:
             # Приветственное сообщение
-            welcome_message = "💱 <b>DOX // P2P</b>\n\nБот показывает реальный курс USDT анализируя общую ситуацию на биржах."
+            welcome_message = "💱 <b>DOX // P2P</b>\n\nПоказываем актуальный курс USDT и топ обменников."
             
             # Создаем клавиатуру с кнопками
             keyboard = [
-                [InlineKeyboardButton("💲 Получить курс", callback_data="get_rate")],
-                [InlineKeyboardButton("📈 Список лучших курсов", callback_data="get_rates_list")],
-                [InlineKeyboardButton("📊 Отслеживание курса", callback_data="tracking_menu")],
-                [InlineKeyboardButton("💼 USDT кошелек", callback_data="wallets_menu")],
+                [InlineKeyboardButton("💲 Текущий курс", callback_data="get_rate")],
+                [InlineKeyboardButton("📈 Топ обменников", callback_data="get_rates_list")],
+                [InlineKeyboardButton("📊 Отслеживание цен", callback_data="tracking_menu")],
+                [InlineKeyboardButton("💼 Кошельки USDT", callback_data="wallets_menu")],
                 [InlineKeyboardButton("🆘 Поддержка", url=bot_config.support_url)]
             ]
             reply_markup = InlineKeyboardMarkup(keyboard)
@@ -481,8 +479,6 @@ class TrustedCurrencyRateBot:
                 await self.crypto_tracking_handler.handle_tracking_select_crypto(update, context)
             elif query.data == "tracking_my_list":
                 await self.crypto_tracking_handler.handle_tracking_my_list(update, context)
-            elif query.data == "tracking_settings":
-                await self.crypto_tracking_handler.handle_tracking_settings(update, context)
             elif query.data.startswith("tracking_crypto_"):
                 crypto = query.data.split("_")[-1]
                 await self.crypto_tracking_handler.handle_tracking_crypto_toggle(update, context, crypto)
@@ -604,9 +600,10 @@ class TrustedCurrencyRateBot:
             if success:
                 # Показываем успешное сообщение с кнопками
                 keyboard = [
-                    [InlineKeyboardButton("💲 Получить курс", callback_data="get_rate")],
-                    [InlineKeyboardButton("📈 Список лучших курсов", callback_data="get_rates_list")],
-                    [InlineKeyboardButton("💼 USDT кошелек", callback_data="wallets_menu")],
+                    [InlineKeyboardButton("💲 Текущий курс", callback_data="get_rate")],
+                    [InlineKeyboardButton("📈 Топ обменников", callback_data="get_rates_list")],
+                    [InlineKeyboardButton("📊 Отслеживание цен", callback_data="tracking_menu")],
+                    [InlineKeyboardButton("💼 Кошельки USDT", callback_data="wallets_menu")],
                     [InlineKeyboardButton("🆘 Поддержка", url=bot_config.support_url)]
                 ]
                 reply_markup = InlineKeyboardMarkup(keyboard)
@@ -654,9 +651,10 @@ class TrustedCurrencyRateBot:
             if success:
                 # Показываем успешное сообщение с кнопками
                 keyboard = [
-                    [InlineKeyboardButton("💲 Получить курс", callback_data="get_rate")],
-                    [InlineKeyboardButton("📈 Список лучших курсов", callback_data="get_rates_list")],
-                    [InlineKeyboardButton("💼 USDT кошелек", callback_data="wallets_menu")],
+                    [InlineKeyboardButton("💲 Текущий курс", callback_data="get_rate")],
+                    [InlineKeyboardButton("📈 Топ обменников", callback_data="get_rates_list")],
+                    [InlineKeyboardButton("📊 Отслеживание цен", callback_data="tracking_menu")],
+                    [InlineKeyboardButton("💼 Кошельки USDT", callback_data="wallets_menu")],
                     [InlineKeyboardButton("🆘 Поддержка", url=bot_config.support_url)]
                 ]
                 reply_markup = InlineKeyboardMarkup(keyboard)

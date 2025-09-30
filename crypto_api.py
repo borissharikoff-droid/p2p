@@ -284,10 +284,14 @@ class CryptoAPI:
                 if datetime.now() - cached_data['timestamp'] < timedelta(seconds=self.cache_duration):
                     return cached_data['price']
             
-            # Получаем цену из API с retry механизмом и Binance fallback
+            # Получаем цену из API с retry механизмом и Binance/альтернативный fallback
             max_retries = 3
             for attempt in range(max_retries):
-                price = await self._fetch_price_from_api(crypto)
+                # Для APEX сразу используем альтернативные источники (Bybit/MEXC)
+                if crypto == 'APEX':
+                    price = await self._fetch_price_from_alternative_sources(crypto)
+                else:
+                    price = await self._fetch_price_from_api(crypto)
                 
                 if price:
                     # Сохраняем в кэш
@@ -304,7 +308,7 @@ class CryptoAPI:
                     logger.info(f"Повторная попытка {attempt + 2}/{max_retries} для {crypto} через {wait_time}с...")
                     await asyncio.sleep(wait_time)
             
-            # Fallback к Binance API если CoinGecko не сработал
+            # Fallback к Binance API если основные источники не сработали
             logger.info(f"Пробуем Binance API для {crypto}...")
             price = await self._fetch_price_from_binance(crypto)
             if price:
@@ -315,26 +319,16 @@ class CryptoAPI:
                 }
                 return price
             
-            # Специальная обработка для неактивных токенов
+            # Дополнительная попытка для APEX через альтернативные источники
             if crypto == 'APEX':
-                logger.warning(f"APEX не торгуется активно, пробуем альтернативные источники...")
-                # Пробуем получить цену из альтернативных источников
-                alt_price = await self._fetch_price_from_alternative_sources(crypto)
-                if alt_price:
+                logger.info("Пробуем альтернативные источники для APEX повторно...")
+                alt_price_retry = await self._fetch_price_from_alternative_sources(crypto)
+                if alt_price_retry:
                     self.cache[crypto] = {
-                        'price': alt_price,
+                        'price': alt_price_retry,
                         'timestamp': datetime.now()
                     }
-                    return alt_price
-                
-                # Если ничего не сработало, используем статичную цену
-                logger.warning(f"Используем статичную цену для APEX")
-                static_price = 0.00045
-                self.cache[crypto] = {
-                    'price': static_price,
-                    'timestamp': datetime.now()
-                }
-                return static_price
+                    return alt_price_retry
             
             # Fallback: если API вернул ошибку (например, 429), используем последнюю кэш-цену даже если она протухла
             if crypto in self.cache:

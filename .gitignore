@@ -1,24 +1,3 @@
-# Переменные окружения
-.env
-.env.local
-.env.production
-.env.staging
-
-# Базы данных
-*.db
-*.sqlite
-*.sqlite3
-bot_database.db
-
-# Кэш
-cache/
-*.cache
-*.tmp
-
-# Логи
-*.log
-logs/
-
 # Python
 __pycache__/
 *.py[cod]
@@ -40,34 +19,65 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+MANIFEST
 
 # Virtual environments
 venv/
 env/
 ENV/
+env.bak/
+venv.bak/
 
 # IDE
 .vscode/
 .idea/
 *.swp
 *.swo
+*~
 
 # OS
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
 Thumbs.db
+
+# Project specific
+.env
+*.log
+cache/
+bot_database.db
+*.db
+
+# Cursor/VS Code extensions
+.cursor/
+.vscode/
 
 # Railway
 .railway/
 
-# Секретные файлы
-secrets/
-keys/
-tokens/
-*.key
-*.pem
+# Other
+.lesshst
+.runelite/
 
-# Временные файлы
-temp/
-tmp/
-*.tmp
-*.temp
+# Exclude everything except project files
+/*
+!/telegram_bot.py
+!/crypto_api.py
+!/database.py
+!/config.py
+!/validators.py
+!/exceptions.py
+!/cache_manager.py
+!/bestchange_parser.py
+!/database_postgres.py
+!/handlers/
+!/cache/
+!/requirements.txt
+!/Procfile
+!/railway.json
+!/README.md
+!/env.template
+!/.gitignore
