@@ -19,7 +19,10 @@ class BestChangeParser:
     
     def __init__(self):
         self.base_url = "https://www.bestchange.com"
-        self.target_url = "https://www.bestchange.com/cash-ruble-to-tether-trc20-in-msk.html"
+        # URL для покупки USDT (RUB → USDT)
+        self.buy_url = "https://www.bestchange.com/cash-ruble-to-tether-trc20-in-msk.html"
+        # URL для продажи USDT (USDT → RUB)
+        self.sell_url = "https://www.bestchange.com/tether-trc20-to-cash-ruble-in-msk.html"
         self.session = requests.Session()
         
         # Заголовки для имитации браузера
@@ -33,11 +36,12 @@ class BestChangeParser:
         }
         self.session.headers.update(self.headers)
     
-    def get_page_content(self) -> str:
+    def get_page_content(self, url: str = None) -> str:
         """Получает содержимое страницы"""
         try:
-            print(f"Загружаем страницу: {self.target_url}")
-            response = self.session.get(self.target_url, timeout=30)
+            target_url = url or self.buy_url  # По умолчанию используем buy_url
+            print(f"Загружаем страницу: {target_url}")
+            response = self.session.get(target_url, timeout=30)
             response.raise_for_status()
             response.encoding = 'utf-8'
             
@@ -189,33 +193,36 @@ class BestChangeParser:
         return filename
     
     def run(self) -> Dict[str, Union[bool, str, List[Dict], int]]:
-        """Основной метод для запуска парсера"""
+        """Основной метод для запуска парсера - парсим ОБЕ страницы"""
         print("Запуск парсера BestChange...")
         
         try:
-            # Получаем содержимое страницы
-            html_content = self.get_page_content()
+            # Парсим страницу покупки USDT (RUB → USDT)
+            print("Парсинг страницы покупки USDT...")
+            buy_content = self.get_page_content(self.buy_url)
+            buy_data = self.parse_exchange_rates(buy_content)
+            if not buy_data:
+                raise BestChangeError("Не удалось извлечь данные об обменниках покупки")
+            buy_sorted = self.sort_by_reviews(buy_data)
+            print(f"Найдено {len(buy_sorted)} обменников для покупки")
             
-            # Парсим данные
-            exchange_data = self.parse_exchange_rates(html_content)
-            if not exchange_data:
-                raise BestChangeError("Не удалось извлечь данные об обменниках")
-            
-            # Сортируем по количеству отзывов
-            sorted_data = self.sort_by_reviews(exchange_data)
-            
-            # Форматируем вывод
-            formatted_output = self.format_output(sorted_data)
-            
-            # Сохраняем в JSON
-            json_filename = self.save_to_json(sorted_data)
+            # Парсим страницу продажи USDT (USDT → RUB)
+            print("Парсинг страницы продажи USDT...")
+            sell_content = self.get_page_content(self.sell_url)
+            sell_data = self.parse_exchange_rates(sell_content)
+            if not sell_data:
+                raise BestChangeError("Не удалось извлечь данные об обменниках продажи")
+            sell_sorted = self.sort_by_reviews(sell_data)
+            print(f"Найдено {len(sell_sorted)} обменников для продажи")
             
             return {
                 "success": True,
-                "data": sorted_data,
-                "formatted_output": formatted_output,
-                "json_file": json_filename,
-                "total_exchangers": len(sorted_data)
+                "data": {
+                    "buy": buy_sorted,
+                    "sell": sell_sorted
+                },
+                "total_buy_exchangers": len(buy_sorted),
+                "total_sell_exchangers": len(sell_sorted)
             }
         except BestChangeError:
             raise
