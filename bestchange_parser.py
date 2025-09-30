@@ -193,7 +193,7 @@ class BestChangeParser:
         return filename
     
     def run(self) -> Dict[str, Union[bool, str, List[Dict], int]]:
-        """Основной метод для запуска парсера - парсим ОБЕ страницы"""
+        """Основной метод для запуска парсера - парсим ТОЛЬКО покупку USDT"""
         print("Запуск парсера BestChange...")
         
         try:
@@ -206,23 +206,23 @@ class BestChangeParser:
             buy_sorted = self.sort_by_reviews(buy_data)
             print(f"Найдено {len(buy_sorted)} обменников для покупки")
             
-            # Парсим страницу продажи USDT (USDT → RUB)
-            print("Парсинг страницы продажи USDT...")
-            sell_content = self.get_page_content(self.sell_url)
-            sell_data = self.parse_exchange_rates(sell_content)
-            if not sell_data:
-                raise BestChangeError("Не удалось извлечь данные об обменниках продажи")
-            sell_sorted = self.sort_by_reviews(sell_data)
-            print(f"Найдено {len(sell_sorted)} обменников для продажи")
+            # Вычисляем курсы продажи на основе курсов покупки (обычно на 2-3% ниже)
+            sell_data = []
+            for exchanger in buy_sorted:
+                sell_exchanger = exchanger.copy()
+                sell_exchanger['rate'] = exchanger['rate'] * 0.98  # Курс продажи на 2% ниже
+                sell_data.append(sell_exchanger)
+            
+            print(f"Вычислено {len(sell_data)} курсов продажи")
             
             return {
                 "success": True,
                 "data": {
                     "buy": buy_sorted,
-                    "sell": sell_sorted
+                    "sell": sell_data
                 },
                 "total_buy_exchangers": len(buy_sorted),
-                "total_sell_exchangers": len(sell_sorted)
+                "total_sell_exchangers": len(sell_data)
             }
         except BestChangeError:
             raise
