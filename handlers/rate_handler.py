@@ -138,7 +138,7 @@ class RateHandler:
                 logger.info(f"Парсинг курсов: найдено {len(data)} обменников")
                 logger.info(f"Диапазон курсов: {min(rates):.4f} - {max(rates):.4f} RUB")
                 logger.info(f"Средний курс: {avg_rate:.4f} RUB")
-                top_exchangers = [f"{ex['name']}: {ex['rate']:.4f}" for ex in data[:3]]
+                top_exchangers = [f"{ex.get('exchanger_name', ex.get('name', 'Неизвестный'))}: {ex['rate']:.4f}" for ex in data[:3]]
                 logger.info(f"Топ-3 обменника: {top_exchangers}")
                 
                 # Формируем сообщение в указанном формате
@@ -231,7 +231,7 @@ class RateHandler:
                     
                     # Создаем ссылку на обменник (используем BestChange ссылки)
                     exchanger_link = exchanger.get('exchanger_link', f"https://www.bestchange.com/click.php?id={exchanger.get('id', 1000)}&from=10&to=91&city=1")
-                    exchanger_name = exchanger.get('name', exchanger.get('exchanger_name', 'Неизвестный'))
+                    exchanger_name = exchanger.get('exchanger_name', exchanger.get('name', 'Неизвестный'))
                     
                     # Вычисляем курсы покупки и продажи (примерные значения)
                     sell_rate = exchanger['rate']
