@@ -19,7 +19,7 @@ class BestChangeParser:
     
     def __init__(self):
         self.base_url = "https://www.bestchange.com"
-        self.target_url = "https://www.bestchange.com/cash-ruble-to-tether-trc20-in-msk.html"
+        self.target_url = "https://www.bestchange.com/tether-trc20-to-cash-ruble-in-msk.html"
         self.session = requests.Session()
         
         # Заголовки для имитации браузера
