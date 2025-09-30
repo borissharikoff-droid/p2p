@@ -142,21 +142,21 @@ class RateHandler:
                 logger.info(f"Топ-3 обменника: {top_exchangers}")
                 
                 # Формируем сообщение в указанном формате
-                # На BestChange RUB→USDT: курсы показывают сколько RUB нужно отдать за 1 USDT (покупка USDT)
-                best_buy_rate = min(rates)   # Лучший курс покупки USDT (меньше RUB за USDT)
-                worst_buy_rate = max(rates)  # Худший курс покупки USDT (больше RUB за USDT)
-                avg_buy_rate = avg_rate      # Средний курс покупки USDT
+                # На BestChange USDT→RUB: курсы показывают сколько RUB получает пользователь за 1 USDT (продажа USDT)
+                best_sell_rate = max(rates)  # Лучший курс продажи USDT (больше RUB за USDT)
+                worst_sell_rate = min(rates) # Худший курс продажи USDT (меньше RUB за USDT)
+                avg_sell_rate = avg_rate     # Средний курс продажи USDT
                 
-                # Курс продажи USDT обычно на 2-3% выше курса покупки
-                best_sell_rate = best_buy_rate * 1.02   # Лучший курс продажи USDT
-                worst_sell_rate = worst_buy_rate * 1.02 # Худший курс продажи USDT
-                avg_sell_rate = avg_buy_rate * 1.02     # Средний курс продажи USDT
+                # Курс покупки USDT обычно на 2-3% ниже курса продажи
+                best_buy_rate = best_sell_rate * 0.98   # Лучший курс покупки USDT
+                worst_buy_rate = worst_sell_rate * 0.98 # Худший курс покупки USDT
+                avg_buy_rate = avg_sell_rate * 0.98     # Средний курс покупки USDT
                 
                 message = f"💱 USDT/RUB • Актуальные курсы\n"
                 message += f"━━━━━━━━━━━━━━━━━\n"
-                message += f"💰 Средний курс: {avg_buy_rate:.2f}₽ за 1 USDT\n"
+                message += f"💰 Средний курс: {avg_sell_rate:.2f}₽ за 1 USDT\n"
                 message += f"📈 Курс продажи: {best_sell_rate:.2f}₽ за 1 USDT\n"
-                message += f"📉 Курс покупки: {worst_buy_rate:.2f}₽ за 1 USDT\n"
+                message += f"📉 Курс покупки: {best_buy_rate:.2f}₽ за 1 USDT\n"
                 message += f"━━━━━━━━━━━━━━━━━\n"
                 message += f"🕘 Обновлено: {get_moscow_time().strftime('%H:%M • %d.%m.%Y')}"
                 
@@ -243,9 +243,9 @@ class RateHandler:
                     exchanger_link = exchanger.get('exchanger_link', f"https://www.bestchange.com/click.php?id={exchanger.get('id', 1000)}&from=10&to=91&city=1")
                     exchanger_name = exchanger.get('exchanger_name', exchanger.get('name', 'Неизвестный'))
                     
-                    # На BestChange RUB→USDT: rate = сколько RUB нужно отдать за 1 USDT (курс покупки USDT)
-                    buy_rate = exchanger['rate']   # Курс покупки USDT за RUB
-                    sell_rate = buy_rate * 1.02   # Курс продажи USDT за RUB (примерно на 2% выше)
+                    # На BestChange USDT→RUB: rate = сколько RUB получает пользователь за 1 USDT (курс продажи USDT)
+                    sell_rate = exchanger['rate']   # Курс продажи USDT за RUB
+                    buy_rate = sell_rate * 0.98   # Курс покупки USDT за RUB (примерно на 2% ниже)
                     
                     message += f"{position_emoji} <a href='{exchanger_link}'>{exchanger_name}</a>\n"
                     message += f"📈 Продажа: {sell_rate:.2f}₽ • 📉 Покупка: {buy_rate:.2f}₽ • ⭐️ {exchanger['reviews_count']} отзывов\n\n"
