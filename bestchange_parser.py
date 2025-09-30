@@ -19,7 +19,7 @@ class BestChangeParser:
     
     def __init__(self):
         self.base_url = "https://www.bestchange.com"
-        self.target_url = "https://www.bestchange.com/tether-trc20-to-cash-ruble-in-msk.html"
+        self.target_url = "https://www.bestchange.com/cash-ruble-to-tether-trc20-in-msk.html"
         self.session = requests.Session()
         
         # Заголовки для имитации браузера
@@ -84,15 +84,24 @@ class BestChangeParser:
                 if not exchanger_name or len(exchanger_name) < 2:
                     continue
                 
-                # Курс обмена (в td.bi, ячейка 3)
-                rate_cell = cells[3]
-                rate_text = rate_cell.get_text(strip=True)
+                # Курс обмена - пробуем разные ячейки
+                rate = None
+                for cell_idx in [2, 3, 4]:  # Пробуем ячейки 2, 3, 4
+                    if cell_idx < len(cells):
+                        rate_cell = cells[cell_idx]
+                        rate_text = rate_cell.get_text(strip=True)
+                        
+                        # Ищем число с точкой (курс) - более точный поиск
+                        rate_match = re.search(r'(\d+\.?\d*)', rate_text)
+                        if rate_match:
+                            potential_rate = float(rate_match.group(1))
+                            # Проверяем, что курс разумный (не 1.0, не слишком маленький)
+                            if potential_rate > 1.5 and potential_rate < 200:
+                                rate = potential_rate
+                                break
                 
-                # Ищем число с точкой (курс) - более точный поиск
-                rate_match = re.search(r'(\d+\.?\d*)', rate_text)
-                if not rate_match:
+                if rate is None:
                     continue
-                rate = float(rate_match.group(1))
                 
                 # Резерв (в td.ar, ячейка 4)
                 reserve_cell = cells[4]
