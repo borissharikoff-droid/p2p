@@ -21,6 +21,17 @@ class CryptoAPI:
         self.session: Optional[aiohttp.ClientSession] = None
         self.cache: Dict[str, Dict[str, Any]] = {}
         self.cache_duration = 60  # Кэш на 1 минуту
+        # Явные сопоставления контрактов для неоднозначных токенов
+        # Ключи: тикер; Значение: dict(platform, address)
+        # platform — платформа CoinGecko (ethereum, arbitrum-one, bsc, polygon-pos, solana, и т.д.)
+        self.token_contracts: Dict[str, Dict[str, str]] = {
+            # PEPE (основной ERC-20 токен на Ethereum)
+            'PEPE': {
+                'platform': 'ethereum',
+                'address': '0x6982508145454Ce325dDbE47a25d4ec3d2311933'
+            },
+            # При необходимости добавим сюда другие неоднозначные токены
+        }
         
         # Поддерживаемые криптовалюты и их ID в CoinGecko
         self.crypto_ids = {
@@ -284,13 +295,24 @@ class CryptoAPI:
                 if datetime.now() - cached_data['timestamp'] < timedelta(seconds=self.cache_duration):
                     return cached_data['price']
             
-            # Получаем цену из API с retry механизмом и Binance/альтернативный fallback
+            # Получаем цену из API с retry механизмом и биржевыми/контрактными fallback'ами
             max_retries = 3
             for attempt in range(max_retries):
-                # Для APEX сразу используем альтернативные источники (Bybit/MEXC)
-                if crypto == 'APEX':
+                # Точное роутирование по токенам с неоднозначным тикером
+                if crypto == 'PEPE':
+                    # 1) Binance (PEPEUSDT) — наиболее надёжный realtime источник
+                    price = await self._fetch_price_from_binance(crypto)
+                    if not price:
+                        # 2) CoinGecko по контракту, чтобы исключить другие «pepe»
+                        price = await self._fetch_price_coingecko_by_contract(crypto)
+                elif crypto == 'APEX':
+                    # 1) Bybit/MEXC (APEXUSDT), где он торгуется
                     price = await self._fetch_price_from_alternative_sources(crypto)
+                    if not price:
+                        # 2) CoinGecko по ID как дополнительный источник
+                        price = await self._fetch_price_from_api(crypto)
                 else:
+                    # Обычный маршрут через CoinGecko ID, затем Binance
                     price = await self._fetch_price_from_api(crypto)
                 
                 if price:
@@ -308,8 +330,8 @@ class CryptoAPI:
                     logger.info(f"Повторная попытка {attempt + 2}/{max_retries} для {crypto} через {wait_time}с...")
                     await asyncio.sleep(wait_time)
             
-            # Fallback к Binance API если основные источники не сработали
-            logger.info(f"Пробуем Binance API для {crypto}...")
+            # Общий Fallback к Binance API если основные источники не сработали
+            logger.info(f"Пробуем Binance API для {crypto} как общий fallback...")
             price = await self._fetch_price_from_binance(crypto)
             if price:
                 # Сохраняем в кэш
@@ -329,6 +351,17 @@ class CryptoAPI:
                         'timestamp': datetime.now()
                     }
                     return alt_price_retry
+            
+            # Дополнительная попытка для PEPE через CoinGecko по контракту
+            if crypto == 'PEPE':
+                logger.info("Пробуем CoinGecko по контракту для PEPE повторно...")
+                pepe_contract_price = await self._fetch_price_coingecko_by_contract(crypto)
+                if pepe_contract_price:
+                    self.cache[crypto] = {
+                        'price': pepe_contract_price,
+                        'timestamp': datetime.now()
+                    }
+                    return pepe_contract_price
             
             # Fallback: если API вернул ошибку (например, 429), используем последнюю кэш-цену даже если она протухла
             if crypto in self.cache:
@@ -474,6 +507,47 @@ class CryptoAPI:
             logger.error(f"Ошибка при запросе к Bybit: {e}")
         
         return None
+
+    async def _fetch_price_coingecko_by_contract(self, crypto: str) -> Optional[float]:
+        """Получить цену токена через CoinGecko по контракту (устраняет неоднозначность тикера)."""
+        try:
+            contract_info = self.token_contracts.get(crypto)
+            if not contract_info:
+                return None
+            platform = contract_info['platform']  # например, 'ethereum'
+            address = contract_info['address']    # адрес контракта
+
+            url = f"https://api.coingecko.com/api/v3/simple/token_price/{platform}"
+            params = {
+                'contract_addresses': address,
+                'vs_currencies': 'usd'
+            }
+
+            if not self.session:
+                self.session = aiohttp.ClientSession(
+                    timeout=aiohttp.ClientTimeout(total=15),
+                    headers={
+                        'User-Agent': 'TelegramBot/1.0',
+                        'Accept': 'application/json'
+                    }
+                )
+
+            async with self.session.get(url, params=params) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    # Ответ — словарь по адресам
+                    entry = data.get(address.lower()) or data.get(address) or {}
+                    usd = entry.get('usd')
+                    if usd is not None:
+                        return float(usd)
+                elif response.status == 429:
+                    logger.warning(f"Rate limit exceeded в CoinGecko token_price для {crypto}")
+                else:
+                    logger.error(f"Ошибка CoinGecko token_price: {response.status}")
+            return None
+        except Exception as e:
+            logger.error(f"Ошибка при запросе CoinGecko по контракту для {crypto}: {e}")
+            return None
     
     async def _fetch_price_from_mexc(self, crypto: str) -> Optional[float]:
         """Получить цену из MEXC API"""
