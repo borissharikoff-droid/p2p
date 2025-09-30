@@ -43,14 +43,21 @@ class DatabaseManager:
             conn = psycopg2.connect(self.connection_string)
             conn.autocommit = False
             yield conn
+            conn.commit()
         except Exception as e:
             if conn:
-                conn.rollback()
+                try:
+                    conn.rollback()
+                except Exception:
+                    pass  # Игнорируем ошибки при откате
             logger.error(f"Ошибка подключения к PostgreSQL: {e}")
             raise DatabaseError(f"Ошибка подключения к БД: {e}")
         finally:
             if conn:
-                conn.close()
+                try:
+                    conn.close()
+                except Exception:
+                    pass  # Игнорируем ошибки при закрытии
     
     def start_session(self, user_id: int, username: str = None, first_name: str = None) -> None:
         """Начать сессию пользователя (совместимость с SQLite версией)"""
@@ -87,7 +94,10 @@ class DatabaseManager:
         """Инициализация таблиц базы данных"""
         try:
             logger.info(f"🔗 Подключаемся к PostgreSQL: {self.connection_string[:50]}...")
-            with self.get_connection() as conn:
+            # Создаем новое подключение для инициализации
+            conn = psycopg2.connect(self.connection_string)
+            conn.autocommit = True  # Включаем автокоммит для создания таблиц
+            try:
                 cursor = conn.cursor()
                 
                 # Создаем таблицу пользователей
@@ -185,8 +195,10 @@ class DatabaseManager:
                     ON crypto_tracking(is_active) WHERE is_active = TRUE
                 ''')
                 
-                conn.commit()
                 logger.info("База данных PostgreSQL инициализирована успешно")
+                
+            finally:
+                conn.close()
                 
         except Exception as e:
             logger.error(f"Ошибка инициализации PostgreSQL: {e}")

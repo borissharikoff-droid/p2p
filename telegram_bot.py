@@ -61,8 +61,10 @@ class TrustedCurrencyRateBot:
         except Exception as e:
             print(f"⚠️ PostgreSQL недоступен: {e}")
             print("🔄 Переключаемся на SQLite")
+            # Импортируем SQLite версию
+            from database import DatabaseManager as SQLiteDatabaseManager
             # SQLite требует путь к файлу
-            self.db = DatabaseManager(db_config.path)
+            self.db = SQLiteDatabaseManager(db_config.path)
         
         # Инициализация обработчиков
         self.rate_handler = RateHandler(self.db)
