@@ -88,16 +88,11 @@ class BestChangeParser:
                 rate_cell = cells[3]
                 rate_text = rate_cell.get_text(strip=True)
                 
-                # Отладочная информация
-                print(f"Обменник: {exchanger_name}, Ячейка курса: '{rate_text}'")
-                
                 # Ищем число с точкой (курс) - более точный поиск
                 rate_match = re.search(r'(\d+\.?\d*)', rate_text)
                 if not rate_match:
-                    print(f"Не найден курс в тексте: '{rate_text}'")
                     continue
                 rate = float(rate_match.group(1))
-                print(f"Извлеченный курс: {rate}")
                 
                 # Резерв (в td.ar, ячейка 4)
                 reserve_cell = cells[4]

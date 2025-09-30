@@ -191,22 +191,20 @@ class RateHandler:
         try:
             await query.edit_message_text("🔄 Получаю список лучших курсов...")
             
-            # Сначала пытаемся получить данные из кэша
-            cached_data = self.cache.get_cached_rates()
+            # Принудительно получаем свежие данные (игнорируем кэш)
+            result = self.parser.run()
             
-            if cached_data:
-                # Используем кэшированные данные
-                data = cached_data
-                logger.info("Используем кэшированные данные для списка курсов")
-            else:
-                # Получаем свежие данные от парсера
-                result = self.parser.run()
-                
-                if not result.get("success"):
+            if not result.get("success"):
+                # Если парсер не сработал, пробуем кэш как fallback
+                cached_data = self.cache.get_cached_rates()
+                if cached_data:
+                    data = cached_data
+                    logger.info("Парсер недоступен, используем кэшированные данные для списка")
+                else:
                     error_msg = f"❌ Ошибка получения данных: {result.get('error', 'Неизвестная ошибка')}"
                     await query.edit_message_text(error_msg)
                     return
-                
+            else:
                 data = result["data"]
                 
                 # Сохраняем в кэш
@@ -214,6 +212,10 @@ class RateHandler:
                     self.cache.set_cached_rates(data)
             
             if data:
+                # Логируем информацию для отладки
+                logger.info(f"Список курсов: найдено {len(data)} обменников")
+                logger.info(f"Первый обменник: {data[0] if data else 'Нет данных'}")
+                
                 # Берем топ-5 обменников
                 top_exchangers = data[:5]
                 
@@ -229,7 +231,7 @@ class RateHandler:
                     
                     # Создаем ссылку на обменник (используем BestChange ссылки)
                     exchanger_link = exchanger.get('exchanger_link', f"https://www.bestchange.com/click.php?id={exchanger.get('id', 1000)}&from=10&to=91&city=1")
-                    exchanger_name = exchanger['exchanger_name']
+                    exchanger_name = exchanger.get('name', exchanger.get('exchanger_name', 'Неизвестный'))
                     
                     # Вычисляем курсы покупки и продажи (примерные значения)
                     sell_rate = exchanger['rate']
