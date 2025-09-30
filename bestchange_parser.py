@@ -88,11 +88,11 @@ class BestChangeParser:
                 if not exchanger_name or len(exchanger_name) < 2:
                     continue
                 
-                # Курс обмена - на странице RUB→USDT курс в ячейке 2 (колонка "Give")
-                if len(cells) < 3:
+                # Курс обмена - на странице USDT→RUB курс в ячейке 3 (колонка "Get")
+                if len(cells) < 4:
                     continue
                     
-                rate_cell = cells[2]  # Ячейка "Give" - сколько RUB за 1 USDT
+                rate_cell = cells[3]  # Ячейка "Get" - сколько RUB за 1 USDT
                 rate_text = rate_cell.get_text(strip=True)
                 
                 # Ищем число с точкой (курс) - более точный поиск
@@ -193,36 +193,36 @@ class BestChangeParser:
         return filename
     
     def run(self) -> Dict[str, Union[bool, str, List[Dict], int]]:
-        """Основной метод для запуска парсера - парсим ТОЛЬКО покупку USDT"""
+        """Основной метод для запуска парсера - парсим ПРОДАЖУ USDT (как на сайте)"""
         print("Запуск парсера BestChange...")
         
         try:
-            # Парсим страницу покупки USDT (RUB → USDT)
-            print("Парсинг страницы покупки USDT...")
-            buy_content = self.get_page_content(self.buy_url)
-            buy_data = self.parse_exchange_rates(buy_content)
-            if not buy_data:
-                raise BestChangeError("Не удалось извлечь данные об обменниках покупки")
-            buy_sorted = self.sort_by_reviews(buy_data)
-            print(f"Найдено {len(buy_sorted)} обменников для покупки")
+            # Парсим страницу ПРОДАЖИ USDT (USDT → RUB) - как показано на сайте
+            print("Парсинг страницы продажи USDT...")
+            sell_content = self.get_page_content(self.sell_url)
+            sell_data = self.parse_exchange_rates(sell_content)
+            if not sell_data:
+                raise BestChangeError("Не удалось извлечь данные об обменниках продажи")
+            sell_sorted = self.sort_by_reviews(sell_data)
+            print(f"Найдено {len(sell_sorted)} обменников для продажи")
             
-            # Вычисляем курсы продажи на основе курсов покупки (обычно на 2-3% ниже)
-            sell_data = []
-            for exchanger in buy_sorted:
-                sell_exchanger = exchanger.copy()
-                sell_exchanger['rate'] = exchanger['rate'] * 0.98  # Курс продажи на 2% ниже
-                sell_data.append(sell_exchanger)
+            # Вычисляем курсы покупки на основе курсов продажи (обычно на 2-3% выше)
+            buy_data = []
+            for exchanger in sell_sorted:
+                buy_exchanger = exchanger.copy()
+                buy_exchanger['rate'] = exchanger['rate'] * 1.02  # Курс покупки на 2% выше
+                buy_data.append(buy_exchanger)
             
-            print(f"Вычислено {len(sell_data)} курсов продажи")
+            print(f"Вычислено {len(buy_data)} курсов покупки")
             
             return {
                 "success": True,
                 "data": {
-                    "buy": buy_sorted,
-                    "sell": sell_data
+                    "buy": buy_data,
+                    "sell": sell_sorted
                 },
-                "total_buy_exchangers": len(buy_sorted),
-                "total_sell_exchangers": len(sell_data)
+                "total_buy_exchangers": len(buy_data),
+                "total_sell_exchangers": len(sell_sorted)
             }
         except BestChangeError:
             raise
