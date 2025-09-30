@@ -138,7 +138,8 @@ class RateHandler:
                 logger.info(f"Парсинг курсов: найдено {len(data)} обменников")
                 logger.info(f"Диапазон курсов: {min(rates):.4f} - {max(rates):.4f} RUB")
                 logger.info(f"Средний курс: {avg_rate:.4f} RUB")
-                logger.info(f"Топ-3 обменника: {[f'{ex[\"name\"]}: {ex[\"rate\"]:.4f}' for ex in data[:3]]}")
+                top_exchangers = [f"{ex['name']}: {ex['rate']:.4f}" for ex in data[:3]]
+                logger.info(f"Топ-3 обменника: {top_exchangers}")
                 
                 # Формируем сообщение в указанном формате
                 message = f"💱 USDT/RUB • Актуальные курсы\n"
