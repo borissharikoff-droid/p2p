@@ -30,9 +30,6 @@ class WalletError(BotError):
     pass
 
 
-class RateLimitError(BotError):
-    """Ошибка превышения лимита запросов"""
-    pass
 
 
 class ValidationError(BotError):

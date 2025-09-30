@@ -16,7 +16,7 @@ from telegram.ext import ContextTypes
 from bestchange_parser import BestChangeParser
 from database import DatabaseManager
 from cache_manager import CacheManager
-from exceptions import BestChangeError, RateLimitError
+from exceptions import BestChangeError
 from config import bot_config
 
 logger = logging.getLogger(__name__)
@@ -31,10 +31,10 @@ def get_moscow_time() -> datetime:
 class RateHandler:
     """Обработчик курсов валют"""
     
-    def __init__(self, db: DatabaseManager, cache: CacheManager):
+    def __init__(self, db: DatabaseManager):
         self.parser = BestChangeParser()
         self.db = db
-        self.cache = cache
+        self.cache = CacheManager()
         self.current_rate: Optional[float] = None
     
     def get_current_rate(self) -> Optional[float]:

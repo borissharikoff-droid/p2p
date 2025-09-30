@@ -30,10 +30,9 @@ except Exception as e:
     print(f"⚠️ PostgreSQL недоступен: {e}")
     print("🔄 Переключаемся на SQLite")
     from database import DatabaseManager
-from cache_manager import CacheManager
 from handlers import RateHandler, WalletHandler, InlineHandler
 from handlers.crypto_tracking_handler import CryptoTrackingHandler
-from exceptions import BotError, BestChangeError, DatabaseError, CacheError, WalletError, ValidationError
+from exceptions import BotError, BestChangeError, DatabaseError, WalletError, ValidationError
 
 # Настройка логирования
 logging.basicConfig(
@@ -64,10 +63,9 @@ class TrustedCurrencyRateBot:
             print("🔄 Переключаемся на SQLite")
             # SQLite требует путь к файлу
             self.db = DatabaseManager(db_config.path)
-        self.cache = CacheManager(cache_config.directory, cache_config.duration)
         
         # Инициализация обработчиков
-        self.rate_handler = RateHandler(self.db, self.cache)
+        self.rate_handler = RateHandler(self.db)
         self.wallet_handler = WalletHandler(self.db)
         self.inline_handler = InlineHandler(self.db, self.rate_handler)
         self.crypto_tracking_handler = CryptoTrackingHandler(self.db)
@@ -502,9 +500,6 @@ class TrustedCurrencyRateBot:
             elif query.data.startswith("tracking_toggle_"):
                 crypto = query.data.split("_")[-1]
                 await self.crypto_tracking_handler.handle_tracking_crypto_toggle(update, context, crypto)
-            elif query.data.startswith("tracking_category_"):
-                category = query.data.split("_")[-1]
-                await self.crypto_tracking_handler.handle_tracking_category(update, context, category)
             elif query.data == "tracking_search":
                 await self.crypto_tracking_handler.handle_tracking_search(update, context)
             elif query.data == "tracking_all":

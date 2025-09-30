@@ -27,7 +27,7 @@ def build_menu(buttons, n_cols=2):
         row = buttons[i:i + n_cols]
         menu.append(row)
     return menu
-from crypto_api import get_crypto_price, get_multiple_crypto_prices, crypto_api, is_symbol_supported
+from crypto_api import get_crypto_price, crypto_api, is_symbol_supported
 
 logger = logging.getLogger(__name__)
 
@@ -70,34 +70,28 @@ class CryptoTrackingHandler:
             'DOT': {'name': 'Polkadot', 'emoji': '🔴', 'color': '🔴', 'category': 'top'},
             'DOGE': {'name': 'Dogecoin', 'emoji': '🐕', 'color': '🐕', 'category': 'top'},
             
-            # DeFi токены
-            'USDT': {'name': 'Tether', 'emoji': '₮', 'color': '🟢', 'category': 'defi'},
-            'USDC': {'name': 'USD Coin', 'emoji': '💵', 'color': '💵', 'category': 'defi'},
-            'DAI': {'name': 'Dai', 'emoji': '🟡', 'color': '🟡', 'category': 'defi'},
-            'UNI': {'name': 'Uniswap', 'emoji': '🦄', 'color': '🦄', 'category': 'defi'},
-            'LINK': {'name': 'Chainlink', 'emoji': '🔗', 'color': '🔗', 'category': 'defi'},
-            'AAVE': {'name': 'Aave', 'emoji': '🦅', 'color': '🦅', 'category': 'defi'},
-            'COMP': {'name': 'Compound', 'emoji': '🏦', 'color': '🏦', 'category': 'defi'},
-            'SUSHI': {'name': 'SushiSwap', 'emoji': '🍣', 'color': '🍣', 'category': 'defi'},
-            
-            # Layer 1 блокчейны
-            'MATIC': {'name': 'Polygon', 'emoji': '🟣', 'color': '🟣', 'category': 'layer1'},
-            'AVAX': {'name': 'Avalanche', 'emoji': '❄️', 'color': '❄️', 'category': 'layer1'},
-            'FTM': {'name': 'Fantom', 'emoji': '👻', 'color': '👻', 'category': 'layer1'},
-            'NEAR': {'name': 'NEAR Protocol', 'emoji': '🌐', 'color': '🌐', 'category': 'layer1'},
-            'ALGO': {'name': 'Algorand', 'emoji': '🔷', 'color': '🔷', 'category': 'layer1'},
-            'ATOM': {'name': 'Cosmos', 'emoji': '🌌', 'color': '🌌', 'category': 'layer1'},
-            
-            # GameFi и NFT
-            'AXS': {'name': 'Axie Infinity', 'emoji': '🎮', 'color': '🎮', 'category': 'gamefi'},
-            'SAND': {'name': 'The Sandbox', 'emoji': '🏖️', 'color': '🏖️', 'category': 'gamefi'},
-            'MANA': {'name': 'Decentraland', 'emoji': '🌍', 'color': '🌍', 'category': 'gamefi'},
-            'ENJ': {'name': 'Enjin Coin', 'emoji': '💎', 'color': '💎', 'category': 'gamefi'},
-            
-            # Мем-коины
-            'SHIB': {'name': 'Shiba Inu', 'emoji': '🐕', 'color': '🐕', 'category': 'meme'},
-            'PEPE': {'name': 'Pepe', 'emoji': '🐸', 'color': '🐸', 'category': 'meme'},
-            'FLOKI': {'name': 'Floki', 'emoji': '🐕', 'color': '🐕', 'category': 'meme'},
+            # Популярные криптовалюты
+            'USDT': {'name': 'Tether', 'emoji': '₮', 'color': '🟢', 'category': 'other'},
+            'USDC': {'name': 'USD Coin', 'emoji': '💵', 'color': '💵', 'category': 'other'},
+            'DAI': {'name': 'Dai', 'emoji': '🟡', 'color': '🟡', 'category': 'other'},
+            'UNI': {'name': 'Uniswap', 'emoji': '🦄', 'color': '🦄', 'category': 'other'},
+            'LINK': {'name': 'Chainlink', 'emoji': '🔗', 'color': '🔗', 'category': 'other'},
+            'AAVE': {'name': 'Aave', 'emoji': '🦅', 'color': '🦅', 'category': 'other'},
+            'COMP': {'name': 'Compound', 'emoji': '🏦', 'color': '🏦', 'category': 'other'},
+            'SUSHI': {'name': 'SushiSwap', 'emoji': '🍣', 'color': '🍣', 'category': 'other'},
+            'MATIC': {'name': 'Polygon', 'emoji': '🟣', 'color': '🟣', 'category': 'other'},
+            'AVAX': {'name': 'Avalanche', 'emoji': '❄️', 'color': '❄️', 'category': 'other'},
+            'FTM': {'name': 'Fantom', 'emoji': '👻', 'color': '👻', 'category': 'other'},
+            'NEAR': {'name': 'NEAR Protocol', 'emoji': '🌐', 'color': '🌐', 'category': 'other'},
+            'ALGO': {'name': 'Algorand', 'emoji': '🔷', 'color': '🔷', 'category': 'other'},
+            'ATOM': {'name': 'Cosmos', 'emoji': '🌌', 'color': '🌌', 'category': 'other'},
+            'AXS': {'name': 'Axie Infinity', 'emoji': '🎮', 'color': '🎮', 'category': 'other'},
+            'SAND': {'name': 'The Sandbox', 'emoji': '🏖️', 'color': '🏖️', 'category': 'other'},
+            'MANA': {'name': 'Decentraland', 'emoji': '🌍', 'color': '🌍', 'category': 'other'},
+            'ENJ': {'name': 'Enjin Coin', 'emoji': '💎', 'color': '💎', 'category': 'other'},
+            'SHIB': {'name': 'Shiba Inu', 'emoji': '🐕', 'color': '🐕', 'category': 'other'},
+            'PEPE': {'name': 'Pepe', 'emoji': '🐸', 'color': '🐸', 'category': 'other'},
+            'FLOKI': {'name': 'Floki', 'emoji': '🐕', 'color': '🐕', 'category': 'other'},
             
             # Другие популярные
             'LTC': {'name': 'Litecoin', 'emoji': '⚡', 'color': '⚡', 'category': 'other'},
@@ -118,10 +112,6 @@ class CryptoTrackingHandler:
         # Категории
         self.categories = {
             'top': '🔥 Топ-8',
-            'defi': '💎 DeFi',
-            'layer1': '🏛️ Layer 1',
-            'gamefi': '🎮 GameFi',
-            'meme': '🦄 Meme',
             'other': '📊 Другие'
         }
     
@@ -198,14 +188,7 @@ class CryptoTrackingHandler:
             
             keyboard = build_menu(top_buttons, n_cols=2)
             
-            # Добавляем кнопки категорий и поиска
-            category_buttons = [
-                InlineKeyboardButton("💎 DeFi", callback_data="tracking_category_defi"),
-                InlineKeyboardButton("🏛️ Layer 1", callback_data="tracking_category_layer1"),
-                InlineKeyboardButton("🎮 GameFi", callback_data="tracking_category_gamefi"),
-                InlineKeyboardButton("🦄 Meme", callback_data="tracking_category_meme")
-            ]
-            keyboard.extend(build_menu(category_buttons, n_cols=2))
+            # Добавляем кнопки поиска
             
             # Кнопки поиска и навигации
             keyboard.append([
@@ -513,47 +496,6 @@ class CryptoTrackingHandler:
         """Проверить, ожидает ли бот ввод порога от пользователя"""
         return user_id in self.waiting_threshold_input
     
-    async def handle_tracking_category(self, update: Update, context: ContextTypes.DEFAULT_TYPE, category: str) -> None:
-        """Обработчик показа криптовалют по категории"""
-        query = update.callback_query
-        user = update.effective_user
-        
-        try:
-            # Получаем текущие настройки пользователя
-            user_trackings = self.db.get_tracking_settings(user.id)
-            tracked_cryptos = {t['crypto'] for t in user_trackings if t.get('is_active', True)}
-            
-            # Фильтруем криптовалюты по категории
-            category_cryptos = [
-                (crypto, info) for crypto, info in self.supported_cryptos.items()
-                if info['category'] == category
-            ]
-            
-            if not category_cryptos:
-                await query.answer("В этой категории пока нет криптовалют")
-                return
-            
-            category_name = self.categories.get(category, category)
-            message = f"🪙 <b>{category_name}</b>\n\n"
-            message += f"Выберите криптовалюты для отслеживания:\n\n"
-            
-            # Создаем кнопки для криптовалют категории
-            category_buttons = []
-            for crypto, info in category_cryptos:
-                is_tracked = crypto in tracked_cryptos
-                button_text = f"{'✅' if is_tracked else '⬜'} ${crypto}"
-                category_buttons.append(InlineKeyboardButton(button_text, callback_data=f"tracking_crypto_{crypto}"))
-            
-            keyboard = build_menu(category_buttons, n_cols=2)
-            
-            keyboard.append([InlineKeyboardButton("⬅️ Назад к выбору", callback_data="tracking_select_crypto")])
-            reply_markup = InlineKeyboardMarkup(keyboard)
-            
-            await query.edit_message_text(message, parse_mode='HTML', reply_markup=reply_markup)
-            
-        except Exception as e:
-            logger.error(f"Ошибка в handle_tracking_category: {e}")
-            await query.answer("❌ Произошла ошибка")
     
     async def handle_tracking_search(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Обработчик поиска криптовалют"""

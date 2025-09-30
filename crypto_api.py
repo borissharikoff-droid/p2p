@@ -582,82 +582,7 @@ class CryptoAPI:
         
         return None
     
-    async def get_multiple_prices(self, cryptos: list) -> Dict[str, float]:
-        """Получить цены для нескольких криптовалют одновременно"""
-        try:
-            # Фильтруем поддерживаемые криптовалюты
-            supported_cryptos = [c.upper() for c in cryptos if c.upper() in self.crypto_ids]
-            
-            if not supported_cryptos:
-                return {}
-            
-            # Получаем ID для API
-            crypto_ids = [self.crypto_ids[c] for c in supported_cryptos]
-            
-            # Запрос к CoinGecko API
-            url = f"https://api.coingecko.com/api/v3/simple/price"
-            params = {
-                'ids': ','.join(crypto_ids),
-                'vs_currencies': 'usd',
-                'include_24hr_change': 'true'
-            }
-            
-            if not self.session:
-                self.session = aiohttp.ClientSession(
-                    timeout=aiohttp.ClientTimeout(total=15),
-                    headers={
-                        'User-Agent': 'TelegramBot/1.0',
-                        'Accept': 'application/json'
-                    }
-                )
-            
-            # Добавляем задержку для избежания rate limiting
-            import asyncio
-            await asyncio.sleep(0.2)  # 200ms задержка для множественных запросов
-            
-            async with self.session.get(url, params=params) as response:
-                if response.status == 200:
-                    data = await response.json()
-                    
-                    # Преобразуем ответ в нужный формат
-                    result = {}
-                    for crypto in supported_cryptos:
-                        crypto_id = self.crypto_ids[crypto]
-                        if crypto_id in data:
-                            price = data[crypto_id]['usd']
-                            result[crypto] = price
-                            
-                            # Обновляем кэш
-                            self.cache[crypto] = {
-                                'price': price,
-                                'timestamp': datetime.now()
-                            }
-                    
-                    return result
-                elif response.status == 429:
-                    # Rate limit exceeded - ждем дольше
-                    logger.warning(f"Rate limit exceeded для множественных запросов, ждем 3 секунды...")
-                    await asyncio.sleep(3)
-                    return {}
-                else:
-                    logger.error(f"Ошибка API CoinGecko: {response.status}")
-                    return {}
-                    
-        except Exception as e:
-            logger.error(f"Ошибка получения множественных цен: {e}")
-            return {}
     
-    def get_cached_price(self, crypto: str) -> Optional[float]:
-        """Получить цену из кэша без запроса к API"""
-        try:
-            crypto = crypto.upper()
-            if crypto in self.cache:
-                cached_data = self.cache[crypto]
-                if datetime.now() - cached_data['timestamp'] < timedelta(seconds=self.cache_duration):
-                    return cached_data['price']
-            return None
-        except Exception:
-            return None
     
     def clear_cache(self) -> None:
         """Очистить кэш"""
@@ -813,10 +738,6 @@ async def get_crypto_price(crypto: str) -> Optional[float]:
         return await api.get_crypto_price(crypto)
 
 
-async def get_multiple_crypto_prices(cryptos: list) -> Dict[str, float]:
-    """Удобная функция для получения цен нескольких криптовалют"""
-    async with crypto_api as api:
-        return await api.get_multiple_prices(cryptos)
 
 
 async def get_supported_symbols() -> set:
