@@ -640,7 +640,15 @@ class CryptoTrackingHandler:
         try:
             # Проверяем, ожидает ли бот поисковый запрос
             if not hasattr(self, 'waiting_search_input') or user.id not in self.waiting_search_input:
-                return
+                # Если пользователь не в состоянии ожидания поиска, но отправил тикер,
+                # автоматически начинаем поиск (для повторных попыток после ошибки)
+                if len(text) <= 10 and text.isalpha():  # Простая проверка на тикер
+                    # Добавляем пользователя в состояние ожидания поиска
+                    if not hasattr(self, 'waiting_search_input'):
+                        self.waiting_search_input = set()
+                    self.waiting_search_input.add(user.id)
+                else:
+                    return
             
             # Убираем из ожидания
             self.waiting_search_input.discard(user.id)

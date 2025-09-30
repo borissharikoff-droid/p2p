@@ -206,6 +206,12 @@ class TrustedCurrencyRateBot:
                 await self.crypto_tracking_handler.handle_tracking_search_message(update, context)
                 return
             
+            # Проверяем, не является ли сообщение тикером криптовалюты (для повторных попыток)
+            if len(text) <= 10 and text.isupper() and text.isalpha():
+                # Возможно, пользователь пытается найти криптовалюту после ошибки
+                await self.crypto_tracking_handler.handle_tracking_search_message(update, context)
+                return
+            
             # Обработка других текстовых сообщений
             await update.message.reply_text(
                 "💡 Используйте кнопки меню или команды для взаимодействия с ботом.\n"
