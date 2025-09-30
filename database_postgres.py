@@ -120,11 +120,19 @@ class DatabaseManager:
                         user_id BIGINT NOT NULL,
                         address TEXT NOT NULL,
                         label TEXT,
+                        network_type TEXT DEFAULT 'USDT',
                         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                         FOREIGN KEY (user_id) REFERENCES users (user_id)
                     )
                 ''')
+                
+                # Добавляем поле network_type если его нет (миграция)
+                try:
+                    cursor.execute("ALTER TABLE user_wallets ADD COLUMN network_type TEXT DEFAULT 'USDT'")
+                except Exception:
+                    # Поле уже существует, игнорируем ошибку
+                    pass
                 
                 # Создаем таблицу логов команд
                 cursor.execute('''
@@ -530,14 +538,14 @@ class DatabaseManager:
             return False
     
     # ------------------- WALLET CRUD -------------------
-    def add_wallet(self, user_id: int, address: str, label: Optional[str]) -> bool:
+    def add_wallet(self, user_id: int, address: str, label: Optional[str], network_type: Optional[str] = None) -> bool:
         try:
             with self.get_connection() as conn:
                 cursor = conn.cursor()
                 cursor.execute('''
-                    INSERT INTO user_wallets (user_id, address, label)
-                    VALUES (%s, %s, %s)
-                ''', (user_id, address, label))
+                    INSERT INTO user_wallets (user_id, address, label, network_type)
+                    VALUES (%s, %s, %s, %s)
+                ''', (user_id, address, label, network_type or 'USDT'))
                 conn.commit()
                 return True
         except Exception as e:
@@ -549,7 +557,7 @@ class DatabaseManager:
             with self.get_connection() as conn:
                 cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
                 cursor.execute('''
-                    SELECT id, address, COALESCE(label, '') as label
+                    SELECT id, address, COALESCE(label, '') as label, COALESCE(network_type, 'USDT') as network_type
                     FROM user_wallets
                     WHERE user_id = %s
                     ORDER BY created_at DESC

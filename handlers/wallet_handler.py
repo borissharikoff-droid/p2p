@@ -13,7 +13,7 @@ from telegram.ext import ContextTypes
 
 from database import DatabaseManager
 from exceptions import WalletError, ValidationError
-from validators import validate_wallet_address, validate_wallet_label
+from validators import validate_wallet_address, validate_wallet_label, get_network_type
 from config import bot_config
 
 logger = logging.getLogger(__name__)
@@ -29,22 +29,8 @@ class WalletHandler:
         self.waiting_wallet_readdress: Dict[int, int] = {}
     
     def get_network_type(self, address: str) -> str:
-        """Определяет тип сети по адресу кошелька"""
-        addr_lower = address.lower()
-
-        # ERC20/BEP20 (Ethereum/BSC): адреса формата 0x + 40 hex
-        if addr_lower.startswith('0x') and len(address) == 42:
-            return "USDT ERC20"
-
-        # TRC20 (Tron): классический случай — 'T' и длина 34
-        if (address.startswith('T') or address.startswith('t')) and len(address) == 34:
-            return "USDT TRC20"
-
-        # TRC20: любой адрес длиной 26-50 символов, не начинающийся с 0x
-        if 26 <= len(address) <= 50 and not addr_lower.startswith('0x'):
-            return "USDT TRC20"
-
-        return "USDT"
+        """Определяет тип сети по адресу кошелька (использует новую функцию из validators)"""
+        return get_network_type(address)
     
     def parse_wallet_input(self, text: str, label_optional_only: bool = False) -> tuple[bool, Optional[str], Optional[str], Optional[str]]:
         """Парсер строки вида: USDT TRC20 - <адрес> [Название]"""
@@ -53,15 +39,42 @@ class WalletHandler:
             text_upper = text.upper()
             if text_upper.startswith('USDT TRC20 - '):
                 body = text[15:].strip()  # Убираем "USDT TRC20 - "
+                network_type = "TRC20"
             elif text_upper.startswith('USDT ERC20 - '):
                 body = text[15:].strip()  # Убираем "USDT ERC20 - "
+                network_type = "ERC20"
             elif text_upper.startswith('USDT BEP20 - '):
                 body = text[15:].strip()  # Убираем "USDT BEP20 - "
+                network_type = "BEP20"
+            elif text_upper.startswith('USDT POLYGON - '):
+                body = text[16:].strip()  # Убираем "USDT POLYGON - "
+                network_type = "POLYGON"
+            elif text_upper.startswith('USDT ARBITRUM - '):
+                body = text[17:].strip()  # Убираем "USDT ARBITRUM - "
+                network_type = "ARBITRUM"
+            elif text_upper.startswith('USDT OPTIMISM - '):
+                body = text[17:].strip()  # Убираем "USDT OPTIMISM - "
+                network_type = "OPTIMISM"
+            elif text_upper.startswith('USDT AVALANCHE - '):
+                body = text[18:].strip()  # Убираем "USDT AVALANCHE - "
+                network_type = "AVALANCHE"
+            elif text_upper.startswith('USDT TON - '):
+                body = text[12:].strip()  # Убираем "USDT TON - "
+                network_type = "TON"
             elif text_upper.startswith('USDT - '):
                 body = text[8:].strip()   # Убираем "USDT - "
+                network_type = "AUTO"
             else:
                 return False, None, None, (
-                    "❌ Неверный формат\n\nИспользуйте:\nUSDT TRC20 - <адрес> [Название — опционально]\n\n"
+                    "❌ Неверный формат\n\nИспользуйте:\n"
+                    "USDT TRC20 - <адрес> [Название]\n"
+                    "USDT ERC20 - <адрес> [Название]\n"
+                    "USDT BEP20 - <адрес> [Название]\n"
+                    "USDT POLYGON - <адрес> [Название]\n"
+                    "USDT ARBITRUM - <адрес> [Название]\n"
+                    "USDT OPTIMISM - <адрес> [Название]\n"
+                    "USDT AVALANCHE - <адрес> [Название]\n"
+                    "USDT TON - <адрес> [Название]\n\n"
                     "Пример:\nUSDT TRC20 - PY3cykOJTeZUEGPHwSZxe29EdyznOB8X7 Реклама"
                 )
             
@@ -76,7 +89,11 @@ class WalletHandler:
             if label:
                 label = validate_wallet_label(label)
             
-            return True, address, label, None
+            # Если тип сети не был указан явно, определяем автоматически
+            if network_type == "AUTO":
+                network_type = self.get_network_type(address)
+            
+            return True, address, label, network_type
         except ValidationError as e:
             return False, None, None, str(e)
         except Exception:
@@ -95,10 +112,23 @@ class WalletHandler:
             text = (
                 "💼 <b>Кошельки USDT</b>\n\n"
                 "Добавьте адрес кошелька для приёма платежей и создания чеков.\n\n"
+                "<b>Поддерживаемые сети:</b>\n"
+                "🟢 TRC20 (Tron)\n"
+                "🟣 ERC20 (Ethereum)\n"
+                "🟣 BEP20 (BSC)\n"
+                "🟣 Polygon\n"
+                "🟣 Arbitrum\n"
+                "🟣 Optimism\n"
+                "🟣 Avalanche\n"
+                "🔵 TON\n\n"
                 "<b>Добавление кошелька:</b>\n"
-                "<code>USDT - &lt;адрес&gt; [Название]</code>\n\n"
-                "<b>Пример:</b>\n"
-                "<code>USDT - PY3cykOJTeZUEGPHwSZxe29EdyznOB8X7 Реклама</code>\n\n"
+                "<code>USDT TRC20 - &lt;адрес&gt; [Название]</code>\n"
+                "<code>USDT ERC20 - &lt;адрес&gt; [Название]</code>\n"
+                "<code>USDT TON - &lt;адрес&gt; [Название]</code>\n\n"
+                "<b>Примеры:</b>\n"
+                "<code>USDT TRC20 - PY3cykOJTeZUEGPHwSZxe29EdyznOB8X7 Реклама</code>\n"
+                "<code>USDT ERC20 - 0x1234...5678 Основной</code>\n"
+                "<code>USDT TON - UQ1234...5678 TON кошелек</code>\n\n"
                 "<b>Создание чека:</b>\n"
                 "<code>@DoxP2P_bot 50000 usdt *название*</code>\n\n"
                 "<blockquote>Название необязательно, но рекомендуется для различения кошельков</blockquote>"
@@ -112,8 +142,12 @@ class WalletHandler:
             # Отрисуем список кошельков кнопками
             buttons = []
             for w in wallets:
+                # Получаем тип сети для отображения
+                network_type = w.get('network_type', self.get_network_type(w['address']))
                 title = w['label'] if w['label'] else w['address']
-                buttons.append([InlineKeyboardButton(title, callback_data=f"wallet_view_{w['id']}")])
+                # Добавляем тип сети к названию
+                button_text = f"{network_type} - {title}"
+                buttons.append([InlineKeyboardButton(button_text, callback_data=f"wallet_view_{w['id']}")])
             buttons.append([InlineKeyboardButton("➕ Добавить кошелёк", callback_data="wallet_add")])
             buttons.append([InlineKeyboardButton("🏠 Главное меню", callback_data="back_to_menu")])
             await query.edit_message_text(text, parse_mode='HTML', reply_markup=InlineKeyboardMarkup(buttons))
@@ -191,7 +225,7 @@ class WalletHandler:
         
         try:
             # Парсим ввод пользователя
-            ok, address, label, error = self.parse_wallet_input(text)
+            ok, address, label, network_type, error = self.parse_wallet_input(text)
             if not ok:
                 return await update.message.reply_text(error)
             
@@ -200,8 +234,8 @@ class WalletHandler:
             if any(w['address'].lower() == address.lower() for w in existing):
                 return await update.message.reply_text("⚠️ Такой кошелек уже добавлен\n\nПопробуйте другой адрес:")
             
-            # Сохраняем кошелек
-            saved = self.db.add_wallet(user.id, address, label)
+            # Сохраняем кошелек с типом сети
+            saved = self.db.add_wallet(user.id, address, label, network_type)
             self.waiting_wallet_add.pop(user.id, None)
             
             if saved:
@@ -216,7 +250,10 @@ class WalletHandler:
                 reply_markup = InlineKeyboardMarkup(keyboard)
                 
                 await update.message.reply_text(
-                    f"✅ **Кошелек добавлен**\n\nАдрес: `{address}`\n\nНазвание: {label or '—'}",
+                    f"✅ **Кошелек добавлен**\n\n"
+                    f"Тип: {network_type}\n"
+                    f"Адрес: `{address}`\n"
+                    f"Название: {label or '—'}",
                     parse_mode='Markdown',
                     reply_markup=reply_markup
                 )
