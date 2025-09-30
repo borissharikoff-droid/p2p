@@ -93,6 +93,7 @@ class CryptoAPI:
             'APEX': 'apex-token',
             'APT': 'aptos',
             'ARB': 'arbitrum',
+            'ASTER': 'aster',
             'OP': 'optimism',
             'SUI': 'sui',
             'SEI': 'sei-network',

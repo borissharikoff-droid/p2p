@@ -225,9 +225,9 @@ class WalletHandler:
         
         try:
             # Парсим ввод пользователя
-            ok, address, label, network_type, error = self.parse_wallet_input(text)
+            ok, address, label, network_type = self.parse_wallet_input(text)
             if not ok:
-                return await update.message.reply_text(error)
+                return await update.message.reply_text(network_type)  # network_type содержит ошибку если ok=False
             
             # Проверяем дубликаты
             existing = self.db.list_wallets(user.id)

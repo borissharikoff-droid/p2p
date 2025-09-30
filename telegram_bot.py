@@ -689,7 +689,9 @@ async def cleanup_task(bot: TrustedCurrencyRateBot) -> None:
             deleted_db = bot.db.cleanup_old_data(days_to_keep=db_config.cleanup_days)
             
             # Очищаем старые файлы кэша (старше 24 часов)
-            deleted_cache = bot.cache.cleanup_old_cache_files(max_age_hours=cache_config.max_age_hours)
+            from cache_manager import CacheManager
+            cache_manager = CacheManager()
+            deleted_cache = cache_manager.cleanup_old_cache_files(max_age_hours=cache_config.max_age_hours)
             
             if deleted_db > 0 or deleted_cache > 0:
                 logger.info(f"Очистка завершена: БД={deleted_db}, кэш={deleted_cache}")
