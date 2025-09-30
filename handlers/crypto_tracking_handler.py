@@ -13,7 +13,7 @@ import pytz
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
-from telegram import util
+from telegram.helpers import build_menu
 
 from database import DatabaseManager
 from exceptions import ValidationError, DatabaseError
@@ -188,7 +188,7 @@ class CryptoTrackingHandler:
                     button_text = f"{'✅' if is_tracked else '⬜'} ${crypto}"
                     top_buttons.append(InlineKeyboardButton(button_text, callback_data=f"tracking_crypto_{crypto}"))
             
-            keyboard = util.build_menu(top_buttons, n_cols=2)
+            keyboard = build_menu(top_buttons, n_cols=2)
             
             # Добавляем кнопки категорий и поиска
             category_buttons = [
@@ -197,7 +197,7 @@ class CryptoTrackingHandler:
                 InlineKeyboardButton("🎮 GameFi", callback_data="tracking_category_gamefi"),
                 InlineKeyboardButton("🦄 Meme", callback_data="tracking_category_meme")
             ]
-            keyboard.extend(util.build_menu(category_buttons, n_cols=2))
+            keyboard.extend(build_menu(category_buttons, n_cols=2))
             
             # Кнопки поиска и навигации
             keyboard.append([
@@ -536,7 +536,7 @@ class CryptoTrackingHandler:
                 button_text = f"{'✅' if is_tracked else '⬜'} ${crypto}"
                 category_buttons.append(InlineKeyboardButton(button_text, callback_data=f"tracking_crypto_{crypto}"))
             
-            keyboard = util.build_menu(category_buttons, n_cols=2)
+            keyboard = build_menu(category_buttons, n_cols=2)
             
             keyboard.append([InlineKeyboardButton("⬅️ Назад к выбору", callback_data="tracking_select_crypto")])
             reply_markup = InlineKeyboardMarkup(keyboard)
@@ -610,7 +610,7 @@ class CryptoTrackingHandler:
                 button_text = f"{'✅' if is_tracked else '⬜'} ${crypto}"
                 all_buttons.append(InlineKeyboardButton(button_text, callback_data=f"tracking_crypto_{crypto}"))
             
-            keyboard = util.build_menu(all_buttons, n_cols=2)
+            keyboard = build_menu(all_buttons, n_cols=2)
             
             keyboard.append([InlineKeyboardButton("⬅️ Назад к выбору", callback_data="tracking_select_crypto")])
             reply_markup = InlineKeyboardMarkup(keyboard)
