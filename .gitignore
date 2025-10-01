@@ -51,6 +51,12 @@ cache/
 bot_database.db
 *.db
 
+# Testing files
+test_bot_database.db
+test_cache/
+test_bot.log
+.env.local
+
 # Cursor/VS Code extensions
 .cursor/
 .vscode/
@@ -81,3 +87,7 @@ bot_database.db
 !/README.md
 !/env.template
 !/.gitignore
+!/test_bot.py
+!/test_conversion.py
+!/env.local.example
+!/LOCAL_TESTING.md
