@@ -201,6 +201,8 @@ class InlineHandler:
             
             # Конвертация USDT в рубли
             rub_amount = self.rate_handler.convert_currency(amount, "USDT", "RUB")
+            # Вычисляем реальный курс продажи
+            sell_rate = rub_amount / amount if amount > 0 else rate
             results.append(
                 InlineQueryResultArticle(
                     id=f"usdt_to_rub_{amount}",
@@ -208,7 +210,7 @@ class InlineHandler:
                     description="Конвертировать USDT в рубли",
                     input_message_content=InputTextMessageContent(
                         f"💵 Конвертация валют\n\n"
-                        f"💰 Средний курс: {rate:.2f}₽ за 1$\n"
+                        f"💰 Курс продажи: {sell_rate:.2f}₽ за 1 USDT\n"
                         f"💱 {amount:,.2f} USDT = {rub_amount:,.2f}₽\n\n"
                         f"🕘 Обновлено: {get_moscow_time().strftime('%H:%M %d.%m.%Y')}"
                     )
@@ -217,6 +219,8 @@ class InlineHandler:
             
             # Конвертация рублей в USDT
             usdt_amount = self.rate_handler.convert_currency(amount, "RUB", "USDT")
+            # Вычисляем реальный курс покупки
+            buy_rate = amount / usdt_amount if usdt_amount > 0 else rate
             results.append(
                 InlineQueryResultArticle(
                     id=f"rub_to_usdt_{amount}",
@@ -224,7 +228,7 @@ class InlineHandler:
                     description="Конвертировать рубли в USDT",
                     input_message_content=InputTextMessageContent(
                         f"💵 Конвертация валют\n\n"
-                        f"💰 Средний курс: {rate:.2f}₽ за 1$\n"
+                        f"💰 Курс покупки: {buy_rate:.2f}₽ за 1 USDT\n"
                         f"💱 {amount:,.2f}₽ = {usdt_amount:.4f} USDT\n\n"
                         f"🕘 Обновлено: {get_moscow_time().strftime('%H:%M %d.%m.%Y')}"
                     )
@@ -259,6 +263,8 @@ class InlineHandler:
         if currency == 'RUB':
             # Конвертируем рубли в USDT
             usdt_amount = self.rate_handler.convert_currency(amount, "RUB", "USDT")
+            # Вычисляем реальный курс покупки
+            buy_rate = amount / usdt_amount if usdt_amount > 0 else rate
             return [
                 InlineQueryResultArticle(
                     id=str(uuid.uuid4()),
@@ -266,7 +272,7 @@ class InlineHandler:
                     description=f"Конвертировать {amount:,.2f} рублей в USDT",
                     input_message_content=InputTextMessageContent(
                         f"💵 Конвертация валют\n\n"
-                        f"💰 Средний курс: {rate:.2f}₽ за 1$\n"
+                        f"💰 Курс покупки: {buy_rate:.2f}₽ за 1 USDT\n"
                         f"💱 {amount:,.2f}₽ = {usdt_amount:.4f} USDT\n\n"
                         f"🕘 Обновлено: {get_moscow_time().strftime('%H:%M %d.%m.%Y')}"
                     )
@@ -275,6 +281,8 @@ class InlineHandler:
         else:
             # Конвертируем USDT в рубли
             rub_amount = self.rate_handler.convert_currency(amount, "USDT", "RUB")
+            # Вычисляем реальный курс продажи
+            sell_rate = rub_amount / amount if amount > 0 else rate
             return [
                 InlineQueryResultArticle(
                     id=str(uuid.uuid4()),
@@ -282,7 +290,7 @@ class InlineHandler:
                     description=f"Конвертировать {amount:,.2f} USDT в рубли",
                     input_message_content=InputTextMessageContent(
                         f"💵 Конвертация валют\n\n"
-                        f"💰 Средний курс: {rate:.2f}₽ за 1$\n"
+                        f"💰 Курс продажи: {sell_rate:.2f}₽ за 1 USDT\n"
                         f"💱 {amount:,.2f} USDT = {rub_amount:,.2f}₽\n\n"
                         f"🕘 Обновлено: {get_moscow_time().strftime('%H:%M %d.%m.%Y')}"
                     )
