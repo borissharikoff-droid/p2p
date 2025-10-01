@@ -206,18 +206,23 @@ class BestChangeParser:
             sell_sorted = self.sort_by_reviews(sell_data)
             print(f"Найдено {len(sell_sorted)} обменников для продажи")
             
-            # Парсим страницу ПОКУПКИ T-Bank RUB → USDT TRC20
+            # Пытаемся парсить страницу ПОКУПКИ T-Bank RUB → USDT TRC20
             print("Парсинг страницы покупки T-Bank RUB → USDT TRC20...")
-            buy_content = self.get_page_content(self.buy_url)
-            buy_data = self.parse_exchange_rates(buy_content)
-            if not buy_data:
-                raise BestChangeError("Не удалось извлечь данные об обменниках покупки")
-            buy_sorted = self.sort_by_reviews(buy_data)
-            print(f"Найдено {len(buy_sorted)} обменников для покупки")
+            buy_data = []
+            try:
+                buy_content = self.get_page_content(self.buy_url)
+                buy_data = self.parse_exchange_rates(buy_content)
+                if buy_data:
+                    buy_sorted = self.sort_by_reviews(buy_data)
+                    print(f"Найдено {len(buy_sorted)} обменников для покупки")
+                else:
+                    print("⚠️ Не удалось извлечь данные об обменниках покупки, используем только данные продажи")
+            except Exception as e:
+                print(f"⚠️ Ошибка парсинга покупки: {e}, используем только данные продажи")
             
             # Берем только топ-15 обменников по количеству отзывов
             top_15_sell = sell_sorted[:15]
-            top_15_buy = buy_sorted[:15]
+            top_15_buy = buy_sorted[:15] if buy_data else []
             
             print(f"Топ-15 обменников продажи: {len(top_15_sell)}")
             print(f"Топ-15 обменников покупки: {len(top_15_buy)}")

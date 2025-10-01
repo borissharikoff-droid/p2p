@@ -164,7 +164,7 @@ class RateHandler:
                 top_15_sell = sell_data[:15]  # Топ-15 по отзывам для продажи
                 
                 # Вычисляем курсы покупки (T-Bank RUB → USDT TRC20)
-                buy_rates = [ex['rate'] for ex in top_15_buy]
+                buy_rates = [ex['rate'] for ex in top_15_buy] if top_15_buy else []
                 avg_buy_rate = sum(buy_rates) / len(buy_rates) if buy_rates else 0
                 
                 # Вычисляем курсы продажи (USDT TRC20 → T-Bank RUB)
@@ -173,29 +173,36 @@ class RateHandler:
                 
                 # Логируем информацию о курсах для отладки
                 logger.info(f"Парсинг курсов: найдено {len(buy_data)} обменников покупки, {len(sell_data)} обменников продажи")
-                logger.info(f"Диапазон курсов покупки (топ-15): {min(buy_rates):.4f} - {max(buy_rates):.4f} RUB")
-                logger.info(f"Диапазон курсов продажи (топ-15): {min(sell_rates):.4f} - {max(sell_rates):.4f} RUB")
-                logger.info(f"Средний курс покупки (топ-15): {avg_buy_rate:.4f} RUB")
-                logger.info(f"Средний курс продажи (топ-15): {avg_sell_rate:.4f} RUB")
-                top_buy_exchangers = [f"{ex.get('exchanger_name', ex.get('name', 'Неизвестный'))}: {ex['rate']:.4f} ({ex.get('reviews_count', 0)} отзывов)" for ex in top_15_buy[:3]]
+                if buy_rates:
+                    logger.info(f"Диапазон курсов покупки (топ-15): {min(buy_rates):.4f} - {max(buy_rates):.4f} RUB")
+                    logger.info(f"Средний курс покупки (топ-15): {avg_buy_rate:.4f} RUB")
+                else:
+                    logger.info("Данные покупки недоступны")
+                if sell_rates:
+                    logger.info(f"Диапазон курсов продажи (топ-15): {min(sell_rates):.4f} - {max(sell_rates):.4f} RUB")
+                    logger.info(f"Средний курс продажи (топ-15): {avg_sell_rate:.4f} RUB")
+                top_buy_exchangers = [f"{ex.get('exchanger_name', ex.get('name', 'Неизвестный'))}: {ex['rate']:.4f} ({ex.get('reviews_count', 0)} отзывов)" for ex in top_15_buy[:3]] if top_15_buy else []
                 top_sell_exchangers = [f"{ex.get('exchanger_name', ex.get('name', 'Неизвестный'))}: {ex['rate']:.4f} ({ex.get('reviews_count', 0)} отзывов)" for ex in top_15_sell[:3]]
                 logger.info(f"Топ-3 обменника покупки: {top_buy_exchangers}")
                 logger.info(f"Топ-3 обменника продажи: {top_sell_exchangers}")
                 
                 # Формируем сообщение в указанном формате
-                # У нас есть РЕАЛЬНЫЕ данные покупки и продажи от топ-15 обменников
-                best_buy_rate = min(buy_rates)   # Лучший курс покупки USDT (меньше RUB за USDT)
-                worst_buy_rate = max(buy_rates)  # Худший курс покупки USDT (больше RUB за USDT)
-                
+                # У нас есть РЕАЛЬНЫЕ данные продажи от топ-15 обменников
                 best_sell_rate = max(sell_rates)  # Лучший курс продажи USDT (больше RUB за USDT)
                 worst_sell_rate = min(sell_rates) # Худший курс продажи USDT (меньше RUB за USDT)
                 
                 message = f"💱 USDT TRC20/T-Bank RUB • Актуальные курсы (топ-15 обменников)\n"
                 message += f"━━━━━━━━━━━━━━━━━\n"
-                message += f"💰 Средний курс покупки: {avg_buy_rate:.2f}₽ за 1 USDT\n"
                 message += f"💰 Средний курс продажи: {avg_sell_rate:.2f}₽ за 1 USDT\n"
                 message += f"📈 Лучший курс продажи: {best_sell_rate:.2f}₽ за 1 USDT\n"
-                message += f"📉 Лучший курс покупки: {best_buy_rate:.2f}₽ за 1 USDT\n"
+                message += f"📉 Худший курс продажи: {worst_sell_rate:.2f}₽ за 1 USDT\n"
+                if buy_rates:
+                    best_buy_rate = min(buy_rates)   # Лучший курс покупки USDT (меньше RUB за USDT)
+                    worst_buy_rate = max(buy_rates)  # Худший курс покупки USDT (больше RUB за USDT)
+                    message += f"💰 Средний курс покупки: {avg_buy_rate:.2f}₽ за 1 USDT\n"
+                    message += f"📉 Лучший курс покупки: {best_buy_rate:.2f}₽ за 1 USDT\n"
+                else:
+                    message += f"⚠️ Данные покупки временно недоступны\n"
                 message += f"━━━━━━━━━━━━━━━━━\n"
                 message += f"🕘 Обновлено: {get_moscow_time().strftime('%H:%M • %d.%m.%Y')}"
                 
