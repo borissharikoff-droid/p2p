@@ -330,7 +330,7 @@ class RateHandler:
                 logger.info(f"Список курсов: найдено {len(sell_data)} обменников")
                 logger.info(f"Первый обменник: {sell_data[0] if sell_data else 'Нет данных'}")
                 
-                # Берем топ-5 обменников
+                # Берем топ-5 обменников ПРОДАЖИ (USDT → RUB). Если buy доступен, покажем обе колонки отдельно
                 top_exchangers = sell_data[:5]
                 
                 # Формируем сообщение
@@ -347,12 +347,26 @@ class RateHandler:
                     exchanger_link = exchanger.get('exchanger_link', f"https://www.bestchange.com/click.php?id={exchanger.get('id', 1000)}&from=10&to=91&city=1")
                     exchanger_name = exchanger.get('exchanger_name', exchanger.get('name', 'Неизвестный'))
                     
-                    # На BestChange T-Bank RUB→USDT TRC20: rate = сколько RUB нужно отдать за 1 USDT (курс покупки USDT)
-                    buy_rate = exchanger['rate']   # Курс покупки USDT TRC20 за T-Bank RUB
-                    sell_rate = buy_rate * 1.02   # Курс продажи USDT TRC20 за T-Bank RUB (примерно на 2% выше)
+                    # На BestChange для страницы ПРОДАЖИ (USDT→RUB) rate — сколько RUB вы получите за 1 USDT (курс продажи)
+                    sell_rate = exchanger['rate']
+                    # Для корректности не выводим синтетический buy_rate. Покажем buy отдельно, если доступен ниже.
+                    buy_rate = None
                     
                     message += f"{position_emoji} <a href='{exchanger_link}'>{exchanger_name}</a>\n"
-                    message += f"📈 Продажа: {sell_rate:.2f}₽ • 📉 Покупка: {buy_rate:.2f}₽ • ⭐️ {exchanger['reviews_count']} отзывов\n\n"
+                    message += f"📈 Продажа: {sell_rate:.2f}₽ • ⭐️ {exchanger['reviews_count']} отзывов\n\n"
+
+                # Если есть buy-данные, добавим отдельный блок Топ-5 покупки (RUB→USDT)
+                buy_data = data.get('buy', [])
+                if buy_data:
+                    message += "━━━━━━━━━━━━━━━━━━━\n"
+                    message += "🟦 Топ-5 покупки (RUB→USDT)\n"
+                    for j, exchanger in enumerate(buy_data[:5]):
+                        position_emoji = ["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣"][j]
+                        exchanger_link = exchanger.get('exchanger_link', f"https://www.bestchange.com/click.php?id={exchanger.get('id', 1000)}&from=10&to=91&city=1")
+                        exchanger_name = exchanger.get('exchanger_name', exchanger.get('name', 'Неизвестный'))
+                        buy_rate = exchanger['rate']  # сколько RUB нужно отдать за 1 USDT (курс покупки)
+                        message += f"{position_emoji} <a href='{exchanger_link}'>{exchanger_name}</a>\n"
+                        message += f"📉 Покупка: {buy_rate:.2f}₽ • ⭐️ {exchanger.get('reviews_count', 0)} отзывов\n\n"
                 
                 # Добавляем время обновления
                 message += f"🕘 Обновлено: {get_moscow_time().strftime('%H:%M:%S')}"

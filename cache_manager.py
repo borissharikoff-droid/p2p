@@ -33,8 +33,8 @@ class CacheManager:
         # Создаем директорию кэша если её нет
         os.makedirs(cache_dir, exist_ok=True)
     
-    def get_cached_rates(self) -> Optional[List[Dict[str, Any]]]:
-        """Получить курсы из кэша"""
+    def get_cached_rates(self) -> Optional[Any]:
+        """Получить курсы из кэша (поддержка legacy списка и нового dict с buy/sell)"""
         try:
             if not os.path.exists(self.cache_file):
                 return None
@@ -57,8 +57,8 @@ class CacheManager:
             logger.error(f"Ошибка чтения кэша: {e}")
             raise CacheError(f"Не удалось прочитать кэш: {e}")
     
-    def set_cached_rates(self, rates_data: List[Dict[str, Any]]) -> bool:
-        """Сохранить курсы в кэш"""
+    def set_cached_rates(self, rates_data: Any) -> bool:
+        """Сохранить курсы в кэш (любой сериализуемый формат)"""
         try:
             cache_data = {
                 'timestamp': datetime.now().isoformat(),

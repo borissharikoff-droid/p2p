@@ -95,8 +95,10 @@ class BestChangeParser:
                 rate_cell = cells[3]  # Ячейка "Get" - сколько RUB за 1 USDT
                 rate_text = rate_cell.get_text(strip=True)
                 
-                # Ищем число с точкой (курс) - более точный поиск
-                rate_match = re.search(r'(\d+\.?\d*)', rate_text)
+                # Нормализуем запятую к точке и убираем пробелы-разделители тысяч
+                normalized_rate_text = rate_text.replace('\xa0', '').replace(' ', '').replace(',', '.')
+                # Ищем число (поддержка дробной части через точку)
+                rate_match = re.search(r'(\d+(?:\.\d+)?)', normalized_rate_text)
                 if not rate_match:
                     continue
                     

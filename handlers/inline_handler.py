@@ -347,7 +347,7 @@ class InlineHandler:
                             f"💸 <b>Запрос на оплату</b>\n\n"
                             f"💰 Сумма к получению: {amount:,.2f}{'₽' if currency == 'RUB' else ' USDT'}\n"
                             + (f"💵 К отправке: {usdt_to_send:.4f} USDT\n" if currency == 'RUB' else f"💰 К отправке: {rub_to_send:,.2f}₽\n") +
-                            f"📊 Курс: {rate:.2f}₽ за 1$\n\n"
+                            f"📊 Курс: {rate:.2f}₽ за 1 USDT\n\n"
                             f"📍 <b>Адрес для отправки:</b>\n"
                             f"<code>{wallet['address']}</code>\n\n"
                             f"⚠️ <b>Внимание:</b> Отправляйте только USDT TRC20 на указанный адрес!",
@@ -405,7 +405,7 @@ class InlineHandler:
                     f"💸 <b>Запрос на оплату</b>\n\n"
                     f"💰 Сумма к получению: {amount:,.2f}₽\n"
                     f"💵 К отправке: {usdt_to_send:.4f} USDT\n"
-                    f"📊 Курс: {rate:.2f}₽ за 1$\n\n"
+                    f"📊 Курс: {rate:.2f}₽ за 1 USDT\n\n"
                     f"📍 <b>Адрес для отправки:</b>\n"
                     f"<code>{wallet['address']}</code>\n\n"
                     f"⚠️ <b>Внимание:</b> Отправляйте только USDT TRC20 на указанный адрес!"
@@ -419,7 +419,7 @@ class InlineHandler:
                     f"💸 <b>Запрос на оплату</b>\n\n"
                     f"💵 Сумма к получению: {amount:,.2f} USDT\n"
                     f"💰 К отправке: {rub_to_send:,.2f}₽\n"
-                    f"📊 Курс: {rate:.2f}₽ за 1$\n\n"
+                    f"📊 Курс: {rate:.2f}₽ за 1 USDT\n\n"
                     f"📍 <b>Адрес для отправки:</b>\n"
                     f"<code>{wallet['address']}</code>\n\n"
                     f"⚠️ <b>Внимание:</b> Отправляйте только USDT TRC20 на указанный адрес!"
