@@ -199,31 +199,32 @@ class RateHandler:
                 # Получаем данные покупки и продажи
                 buy_data = data.get('buy', [])
                 sell_data = data.get('sell', [])
+                metrics = result.get('metrics', {})
                 
-                # Берем ТОЛЬКО ТОП-15 обменников с наибольшим количеством отзывов
-                top_15_buy = buy_data[:15]  # Топ-15 по отзывам для покупки
-                top_15_sell = sell_data[:15]  # Топ-15 по отзывам для продажи
+                # Берем ТОЛЬКО ТОП-10 обменников с наибольшим количеством отзывов
+                top_10_buy = buy_data[:10]  # Топ-10 по отзывам для покупки
+                top_10_sell = sell_data[:10]  # Топ-10 по отзывам для продажи
                 
                 # Вычисляем курсы покупки (T-Bank RUB → USDT TRC20)
-                buy_rates = [ex['rate'] for ex in top_15_buy] if top_15_buy else []
-                avg_buy_rate = sum(buy_rates) / len(buy_rates) if buy_rates else 0
+                buy_rates = [ex['rate'] for ex in top_10_buy] if top_10_buy else []
+                avg_buy_rate = metrics.get('avg_buy_rate') if metrics else (sum(buy_rates) / len(buy_rates) if buy_rates else 0)
                 
                 # Вычисляем курсы продажи (USDT TRC20 → T-Bank RUB)
-                sell_rates = [ex['rate'] for ex in top_15_sell]
-                avg_sell_rate = sum(sell_rates) / len(sell_rates) if sell_rates else 0
+                sell_rates = [ex['rate'] for ex in top_10_sell]
+                avg_sell_rate = metrics.get('avg_sell_rate') if metrics else (sum(sell_rates) / len(sell_rates) if sell_rates else 0)
                 
                 # Логируем информацию о курсах для отладки
                 logger.info(f"Парсинг курсов: найдено {len(buy_data)} обменников покупки, {len(sell_data)} обменников продажи")
                 if buy_rates:
-                    logger.info(f"Диапазон курсов покупки (топ-15): {min(buy_rates):.4f} - {max(buy_rates):.4f} RUB")
-                    logger.info(f"Средний курс покупки (топ-15): {avg_buy_rate:.4f} RUB")
+                    logger.info(f"Диапазон курсов покупки (топ-10): {min(buy_rates):.4f} - {max(buy_rates):.4f} RUB")
+                    logger.info(f"Средний курс покупки (топ-10): {avg_buy_rate:.4f} RUB")
                 else:
                     logger.info("Данные покупки недоступны")
                 if sell_rates:
-                    logger.info(f"Диапазон курсов продажи (топ-15): {min(sell_rates):.4f} - {max(sell_rates):.4f} RUB")
-                    logger.info(f"Средний курс продажи (топ-15): {avg_sell_rate:.4f} RUB")
-                top_buy_exchangers = [f"{ex.get('exchanger_name', ex.get('name', 'Неизвестный'))}: {ex['rate']:.4f} ({ex.get('reviews_count', 0)} отзывов)" for ex in top_15_buy[:3]] if top_15_buy else []
-                top_sell_exchangers = [f"{ex.get('exchanger_name', ex.get('name', 'Неизвестный'))}: {ex['rate']:.4f} ({ex.get('reviews_count', 0)} отзывов)" for ex in top_15_sell[:3]]
+                    logger.info(f"Диапазон курсов продажи (топ-10): {min(sell_rates):.4f} - {max(sell_rates):.4f} RUB")
+                    logger.info(f"Средний курс продажи (топ-10): {avg_sell_rate:.4f} RUB")
+                top_buy_exchangers = [f"{ex.get('exchanger_name', ex.get('name', 'Неизвестный'))}: {ex['rate']:.4f} ({ex.get('reviews_count', 0)} отзывов)" for ex in top_10_buy[:3]] if top_10_buy else []
+                top_sell_exchangers = [f"{ex.get('exchanger_name', ex.get('name', 'Неизвестный'))}: {ex['rate']:.4f} ({ex.get('reviews_count', 0)} отзывов)" for ex in top_10_sell[:3]]
                 logger.info(f"Топ-3 обменника покупки: {top_buy_exchangers}")
                 logger.info(f"Топ-3 обменника продажи: {top_sell_exchangers}")
                 
@@ -232,7 +233,7 @@ class RateHandler:
                 best_sell_rate = max(sell_rates)  # Лучший курс продажи USDT (больше RUB за USDT)
                 worst_sell_rate = min(sell_rates) # Худший курс продажи USDT (меньше RUB за USDT)
                 
-                message = f"💱 USDT TRC20/T-Bank RUB • Актуальные курсы (топ-15 обменников)\n"
+                message = f"💱 USDT TRC20/T-Bank RUB • Актуальные курсы (топ-10 обменников)\n"
                 message += f"━━━━━━━━━━━━━━━━━\n"
                 message += f"💰 Средний курс продажи: {avg_sell_rate:.2f}₽ за 1 USDT\n"
                 message += f"📈 Лучший курс продажи: {best_sell_rate:.2f}₽ за 1 USDT\n"

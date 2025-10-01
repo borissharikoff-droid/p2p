@@ -194,8 +194,10 @@ class BestChangeParser:
         
         return filename
     
-    def run(self) -> Dict[str, Union[bool, str, List[Dict], int]]:
-        """Основной метод для запуска парсера - парсим USDT TRC20 → T-Bank RUB"""
+    def run(self) -> Dict[str, Union[bool, str, List[Dict], int, Dict[str, float]]]:
+        """Основной метод для запуска парсера - парсим USDT TRC20 → T-Bank RUB.
+        Возвращает топ-10 обменников по отзывам и агрегаты (средний и лучший курсы).
+        """
         print("Запуск парсера BestChange...")
         
         try:
@@ -222,21 +224,35 @@ class BestChangeParser:
             except Exception as e:
                 print(f"⚠️ Ошибка парсинга покупки: {e}, используем только данные продажи")
             
-            # Берем только топ-15 обменников по количеству отзывов
-            top_15_sell = sell_sorted[:15]
-            top_15_buy = buy_sorted[:15] if buy_data else []
+            # Берем только топ-10 обменников по количеству отзывов
+            top_10_sell = sell_sorted[:10]
+            top_10_buy = buy_sorted[:10] if buy_data else []
             
-            print(f"Топ-15 обменников продажи: {len(top_15_sell)}")
-            print(f"Топ-15 обменников покупки: {len(top_15_buy)}")
+            print(f"Топ-10 обменников продажи: {len(top_10_sell)}")
+            print(f"Топ-10 обменников покупки: {len(top_10_buy)}")
+
+            # Готовим агрегаты по топ-10
+            sell_rates = [ex['rate'] for ex in top_10_sell]
+            buy_rates = [ex['rate'] for ex in top_10_buy] if top_10_buy else []
+            avg_sell_rate = sum(sell_rates) / len(sell_rates) if sell_rates else 0.0
+            best_sell_rate = max(sell_rates) if sell_rates else 0.0  # лучший = максимум RUB за 1 USDT
+            avg_buy_rate = sum(buy_rates) / len(buy_rates) if buy_rates else 0.0
+            best_buy_rate = min(buy_rates) if buy_rates else 0.0     # лучший = минимум RUB за 1 USDT
             
             return {
                 "success": True,
                 "data": {
-                    "buy": top_15_buy,
-                    "sell": top_15_sell
+                    "buy": top_10_buy,
+                    "sell": top_10_sell
                 },
-                "total_buy_exchangers": len(top_15_buy),
-                "total_sell_exchangers": len(top_15_sell)
+                "metrics": {
+                    "avg_sell_rate": avg_sell_rate,
+                    "best_sell_rate": best_sell_rate,
+                    "avg_buy_rate": avg_buy_rate,
+                    "best_buy_rate": best_buy_rate
+                },
+                "total_buy_exchangers": len(top_10_buy),
+                "total_sell_exchangers": len(top_10_sell)
             }
         except BestChangeError:
             raise
