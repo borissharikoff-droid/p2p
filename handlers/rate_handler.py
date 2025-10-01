@@ -242,8 +242,6 @@ class RateHandler:
                     worst_buy_rate = max(buy_rates)  # Худший курс покупки USDT (больше RUB за USDT)
                     message += f"💰 Средний курс покупки: {avg_buy_rate:.2f}₽ за 1 USDT\n"
                     message += f"📉 Лучший курс покупки: {best_buy_rate:.2f}₽ за 1 USDT\n"
-                else:
-                    message += f"⚠️ Данные покупки временно недоступны\n"
                 message += f"━━━━━━━━━━━━━━━━━\n"
                 message += f"🕘 Обновлено: {get_moscow_time().strftime('%H:%M • %d.%m.%Y')}"
                 
