@@ -80,16 +80,58 @@ class RateHandler:
     def convert_currency(self, amount: float, from_currency: str, to_currency: str) -> Optional[float]:
         """Конвертация валют"""
         try:
-            rate = self.get_current_rate()
-            if not rate:
+            # Получаем данные из кэша для правильной конвертации
+            cached_data = self.cache.get_cached_rates()
+            if not cached_data:
                 return None
             
+            # Обрабатываем старый формат кэша (список)
+            if isinstance(cached_data, list):
+                # Если кэш в старом формате, используем средний курс
+                if not cached_data:
+                    return None
+                rates = [ex['rate'] for ex in cached_data[:5]]
+                avg_rate = sum(rates) / len(rates)
+                
+                if from_currency == "RUB" and to_currency == "USDT":
+                    # Рубли в USDT - используем курс покупки (больше рублей за USDT)
+                    return amount / avg_rate
+                elif from_currency == "USDT" and to_currency == "RUB":
+                    # USDT в рубли - используем курс продажи (меньше рублей за USDT)
+                    return amount * avg_rate
+                else:
+                    return None
+            
+            # Новый формат кэша (словарь с buy/sell)
+            buy_data = cached_data.get('buy', [])
+            sell_data = cached_data.get('sell', [])
+            
             if from_currency == "RUB" and to_currency == "USDT":
-                # Рубли в USDT
-                return amount / rate
+                # Рубли в USDT - нужен курс ПОКУПКИ USDT
+                if buy_data:
+                    # Используем лучший курс покупки (минимальный)
+                    buy_rates = [ex['rate'] for ex in buy_data[:5]]
+                    best_buy_rate = min(buy_rates)
+                    return amount / best_buy_rate
+                elif sell_data:
+                    # Если данных покупки нет, используем курс продажи с наценкой
+                    sell_rates = [ex['rate'] for ex in sell_data[:5]]
+                    avg_sell_rate = sum(sell_rates) / len(sell_rates)
+                    # Добавляем 2% наценки для покупки
+                    buy_rate = avg_sell_rate * 1.02
+                    return amount / buy_rate
+                else:
+                    return None
+                    
             elif from_currency == "USDT" and to_currency == "RUB":
-                # USDT в рубли
-                return amount * rate
+                # USDT в рубли - нужен курс ПРОДАЖИ USDT
+                if sell_data:
+                    # Используем худший курс продажи (минимальный)
+                    sell_rates = [ex['rate'] for ex in sell_data[:5]]
+                    worst_sell_rate = min(sell_rates)
+                    return amount * worst_sell_rate
+                else:
+                    return None
             else:
                 return None
                 
