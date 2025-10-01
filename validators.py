@@ -101,8 +101,8 @@ def validate_amount(amount: str) -> float:
         if value <= 0:
             raise ValidationError("Сумма должна быть больше 0")
         
-        if value > 1000000:  # Максимальная сумма
-            raise ValidationError("Сумма слишком большая (максимум 1,000,000)")
+        if value > 10000000:  # Максимальная сумма
+            raise ValidationError("Сумма слишком большая (максимум 10,000,000)")
         
         return value
         
