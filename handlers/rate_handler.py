@@ -87,18 +87,19 @@ class RateHandler:
             
             # Обрабатываем старый формат кэша (список)
             if isinstance(cached_data, list):
-                # Если кэш в старом формате, используем средний курс
+                # Если кэш в старом формате, используем разные курсы
                 if not cached_data:
                     return None
                 rates = [ex['rate'] for ex in cached_data[:5]]
                 avg_rate = sum(rates) / len(rates)
+                worst_rate = min(rates)
                 
                 if from_currency == "RUB" and to_currency == "USDT":
-                    # Рубли в USDT - используем курс покупки (больше рублей за USDT)
-                    return amount / avg_rate
+                    # Рубли в USDT - используем худший курс как курс покупки
+                    return amount / worst_rate
                 elif from_currency == "USDT" and to_currency == "RUB":
-                    # USDT в рубли - используем курс продажи (меньше рублей за USDT)
-                    return amount * avg_rate
+                    # USDT в рубли - используем худший курс как курс продажи
+                    return amount * worst_rate
                 else:
                     return None
             
@@ -114,12 +115,11 @@ class RateHandler:
                     best_buy_rate = min(buy_rates)
                     return amount / best_buy_rate
                 elif sell_data:
-                    # Если данных покупки нет, используем курс продажи с наценкой
+                    # Если данных покупки нет, используем худший курс продажи как курс покупки
                     sell_rates = [ex['rate'] for ex in sell_data[:5]]
-                    avg_sell_rate = sum(sell_rates) / len(sell_rates)
-                    # Добавляем 2% наценки для покупки
-                    buy_rate = avg_sell_rate * 1.02
-                    return amount / buy_rate
+                    worst_sell_rate = min(sell_rates)
+                    # Используем худший курс продажи как курс покупки (пользователь платит больше)
+                    return amount / worst_sell_rate
                 else:
                     return None
                     
