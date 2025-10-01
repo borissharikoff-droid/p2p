@@ -96,12 +96,12 @@ class InlineHandler:
                         title="💡 Введите сумму для конвертации",
                         description="Например: 8000 или 500.50",
                         input_message_content=InputTextMessageContent(
-                            "💱 Trusted Currency Rate\n\n"
+                            "💱 DOX // P2P\n\n"
                             "Введите сумму для конвертации валют:\n"
-                            "• 8000 - показать все варианты\n"
-                            "• 8000 usdt - конвертация USDT\n"
-                            "• 8000 rub - конвертация рублей\n"
-                            "• 8000 usdt кошелек - с выбором кошелька\n\n"
+                            "• 8000 — показать все варианты\n"
+                            "• 8000 usdt — конвертация USDT\n"
+                            "• 8000 rub — конвертация рублей\n"
+                            "• 8000 usdt кошелек — с выбором кошелька\n\n"
                             "Пример: @DoxP2P_bot 8000"
                         )
                     ),
@@ -111,11 +111,11 @@ class InlineHandler:
                         description="Пример: 10000 usdt мой_кошелек",
                         input_message_content=InputTextMessageContent(
                             "💼 Создание чека с кошельком\n\n"
-                            "Формат: <code>@DoxP2P_bot [сумма] usdt [название]</code>\n\n"
+                            "Формат: @DoxP2P_bot [сумма] usdt [название]\n\n"
                             "Примеры:\n"
-                            "• <code>@DoxP2P_bot 10000 usdt мой_кошелек</code>\n"
-                            "• <code>@DoxP2P_bot 50000 usdt работа</code>\n"
-                            "• <code>@DoxP2P_bot 15000 usdt</code> (без названия)\n\n"
+                            "• @DoxP2P_bot 10000 usdt мой_кошелек\n"
+                            "• @DoxP2P_bot 50000 usdt работа\n"
+                            "• @DoxP2P_bot 15000 usdt (без названия)\n\n"
                             "💡 Название кошелька поможет различать разные кошельки"
                         )
                     ),
@@ -126,8 +126,8 @@ class InlineHandler:
                         input_message_content=InputTextMessageContent(
                             "🔄 Быстрая конвертация валют\n\n"
                             "Просто введите сумму:\n"
-                            "• <code>1000</code> - конвертация рублей в USDT\n"
-                            "• <code>50.5</code> - конвертация USDT в рубли\n\n"
+                            "• 1000 — конвертация рублей в USDT\n"
+                            "• 50.5 — конвертация USDT в рубли\n\n"
                             "Бот автоматически определит валюту по размеру суммы:\n"
                             "• Большие числа (1000+) = рубли → USDT\n"
                             "• Малые числа (<100) = USDT → рубли"

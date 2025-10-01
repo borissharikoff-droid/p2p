@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Парсер курсов обмена USDT в рубли с сайта BestChange
-Сортирует обменники по количеству отзывов
+Парсер курсов обмена USDT TRC20 в рубли T-Bank с сайта BestChange
+Сортирует обменники по количеству отзывов (топ-15)
 """
 
 import requests
@@ -19,10 +19,10 @@ class BestChangeParser:
     
     def __init__(self):
         self.base_url = "https://www.bestchange.com"
-        # URL для покупки USDT (RUB → USDT)
-        self.buy_url = "https://www.bestchange.com/cash-ruble-to-tether-trc20-in-msk.html"
-        # URL для продажи USDT (USDT → RUB)
-        self.sell_url = "https://www.bestchange.com/tether-trc20-to-cash-ruble-in-msk.html"
+        # URL для покупки USDT (T-Bank RUB → USDT TRC20)
+        self.buy_url = "https://www.bestchange.com/tinkoff-to-tether-trc20.html"
+        # URL для продажи USDT (USDT TRC20 → T-Bank RUB)
+        self.sell_url = "https://www.bestchange.com/tether-trc20-to-tinkoff.html"
         self.session = requests.Session()
         
         # Заголовки для имитации браузера
@@ -162,12 +162,12 @@ class BestChangeParser:
         
         output = []
         output.append("=" * 80)
-        output.append("КУРСЫ ОБМЕНА USDT TRC20 → РУБЛИ (НАЛИЧНЫЕ)")
+        output.append("КУРСЫ ОБМЕНА USDT TRC20 → РУБЛИ T-BANK")
         output.append("=" * 80)
         output.append(f"Найдено обменников: {len(exchange_data)}")
         output.append(f"Время парсинга: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
         output.append("")
-        output.append("ОБМЕННИКИ (отсортированы по количеству отзывов):")
+        output.append("ОБМЕННИКИ (отсортированы по количеству отзывов, топ-15):")
         output.append("-" * 80)
         
         for i, data in enumerate(exchange_data, 1):
@@ -193,12 +193,12 @@ class BestChangeParser:
         return filename
     
     def run(self) -> Dict[str, Union[bool, str, List[Dict], int]]:
-        """Основной метод для запуска парсера - парсим ПРОДАЖУ USDT (как на сайте)"""
+        """Основной метод для запуска парсера - парсим USDT TRC20 → T-Bank RUB"""
         print("Запуск парсера BestChange...")
         
         try:
-            # Парсим страницу ПРОДАЖИ USDT (USDT → RUB) - как показано на сайте
-            print("Парсинг страницы продажи USDT...")
+            # Парсим страницу ПРОДАЖИ USDT TRC20 → T-Bank RUB
+            print("Парсинг страницы продажи USDT TRC20 → T-Bank RUB...")
             sell_content = self.get_page_content(self.sell_url)
             sell_data = self.parse_exchange_rates(sell_content)
             if not sell_data:
@@ -206,23 +206,30 @@ class BestChangeParser:
             sell_sorted = self.sort_by_reviews(sell_data)
             print(f"Найдено {len(sell_sorted)} обменников для продажи")
             
-            # Вычисляем курсы покупки на основе курсов продажи (обычно на 2-3% выше)
-            buy_data = []
-            for exchanger in sell_sorted:
-                buy_exchanger = exchanger.copy()
-                buy_exchanger['rate'] = exchanger['rate'] * 1.02  # Курс покупки на 2% выше
-                buy_data.append(buy_exchanger)
+            # Парсим страницу ПОКУПКИ T-Bank RUB → USDT TRC20
+            print("Парсинг страницы покупки T-Bank RUB → USDT TRC20...")
+            buy_content = self.get_page_content(self.buy_url)
+            buy_data = self.parse_exchange_rates(buy_content)
+            if not buy_data:
+                raise BestChangeError("Не удалось извлечь данные об обменниках покупки")
+            buy_sorted = self.sort_by_reviews(buy_data)
+            print(f"Найдено {len(buy_sorted)} обменников для покупки")
             
-            print(f"Вычислено {len(buy_data)} курсов покупки")
+            # Берем только топ-15 обменников по количеству отзывов
+            top_15_sell = sell_sorted[:15]
+            top_15_buy = buy_sorted[:15]
+            
+            print(f"Топ-15 обменников продажи: {len(top_15_sell)}")
+            print(f"Топ-15 обменников покупки: {len(top_15_buy)}")
             
             return {
                 "success": True,
                 "data": {
-                    "buy": buy_data,
-                    "sell": sell_sorted
+                    "buy": top_15_buy,
+                    "sell": top_15_sell
                 },
-                "total_buy_exchangers": len(buy_data),
-                "total_sell_exchangers": len(sell_sorted)
+                "total_buy_exchangers": len(top_15_buy),
+                "total_sell_exchangers": len(top_15_sell)
             }
         except BestChangeError:
             raise

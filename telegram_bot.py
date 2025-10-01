@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Trusted Currency Rate - Telegram бот для получения курсов обмена USDT в рубли
+DOX // P2P - Telegram бот для получения курсов обмена USDT в рубли
 Рефакторенная версия с улучшенной архитектурой
 """
 
@@ -49,7 +49,7 @@ def get_moscow_time() -> datetime:
 
 
 class TrustedCurrencyRateBot:
-    """Trusted Currency Rate - Telegram бот для получения курсов USDT"""
+    """DOX // P2P - Telegram бот для получения курсов USDT"""
     
     def __init__(self):
         # Инициализация компонентов
@@ -245,7 +245,7 @@ class TrustedCurrencyRateBot:
         
         try:
             help_text = """
-💱 <b>Trusted Currency Rate</b>
+💱 <b>DOX // P2P</b>
 
 <b>Доступные команды:</b>
 /start - Главное меню с кнопками
@@ -850,7 +850,7 @@ def main() -> None:
         print("⚠️ JobQueue недоступен, задачи не запланированы")
     
     # Запускаем бота
-    print("🤖 Запуск Trusted Currency Rate бота...")
+    print("🤖 Запуск DOX // P2P бота...")
     print("📱 Бот готов к работе!")
     print("💡 Отправьте /start боту для получения курсов USDT")
     print("🔄 Inline режим: @DoxP2P_bot [сумма] для конвертации")
