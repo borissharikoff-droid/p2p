@@ -44,18 +44,32 @@ class RateHandler:
             cached_data = self.cache.get_cached_rates()
             
             if cached_data:
-                rates = [ex['rate'] for ex in cached_data]
-                self.current_rate = sum(rates) / len(rates)
-                return self.current_rate
+                # Проверяем формат кэшированных данных
+                if isinstance(cached_data, list):
+                    # Старый формат - простой список
+                    rates = [ex['rate'] for ex in cached_data]
+                elif isinstance(cached_data, dict) and 'sell' in cached_data:
+                    # Новый формат - используем данные продажи
+                    rates = [ex['rate'] for ex in cached_data['sell']]
+                else:
+                    logger.error(f"Неизвестный формат кэшированных данных в get_current_rate: {type(cached_data)}")
+                    return None
+                
+                if rates:
+                    self.current_rate = sum(rates) / len(rates)
+                    return self.current_rate
             
             # Если кэша нет, получаем свежие данные
             result = self.parser.run()
             if result.get("success") and result["data"]:
-                rates = [ex['rate'] for ex in result["data"]]
-                self.current_rate = sum(rates) / len(rates)
-                # Сохраняем в кэш
-                self.cache.set_cached_rates(result["data"])
-                return self.current_rate
+                # Используем данные продажи для расчета среднего курса
+                sell_data = result["data"].get('sell', [])
+                if sell_data:
+                    rates = [ex['rate'] for ex in sell_data]
+                    self.current_rate = sum(rates) / len(rates)
+                    # Сохраняем в кэш
+                    self.cache.set_cached_rates(result["data"])
+                    return self.current_rate
             
             return None
             
@@ -111,10 +125,24 @@ class RateHandler:
                 # Если парсер не сработал, пробуем кэш как fallback
                 cached_data = self.cache.get_cached_rates()
                 if cached_data:
-                    data = cached_data
-                    is_cached = True
-                    logger.info("Парсер недоступен, используем кэшированные данные")
+                    # Проверяем формат кэшированных данных
+                    if isinstance(cached_data, list):
+                        # Старый формат - простой список, конвертируем в новый
+                        data = {'sell': cached_data, 'buy': []}
+                        is_cached = True
+                        logger.info("Парсер недоступен, используем кэшированные данные (старый формат)")
+                    elif isinstance(cached_data, dict) and 'sell' in cached_data:
+                        # Новый формат
+                        data = cached_data
+                        is_cached = True
+                        logger.info("Парсер недоступен, используем кэшированные данные (новый формат)")
+                    else:
+                        logger.error(f"Неизвестный формат кэшированных данных: {type(cached_data)}")
+                        data = None
                 else:
+                    data = None
+                
+                if not data:
                     error_msg = f"❌ Ошибка получения данных: {result.get('error', 'Неизвестная ошибка')}"
                     await query.edit_message_text(error_msg)
                     return
@@ -201,7 +229,7 @@ class RateHandler:
             logger.error(f"Ошибка BestChange: {e}")
             await query.edit_message_text("❌ Ошибка получения курсов. Попробуйте позже.")
         except Exception as e:
-            logger.error(f"Ошибка в handle_get_rate: {e}")
+            logger.error(f"Ошибка в handle_get_rate: {e}", exc_info=True)
             await query.edit_message_text("❌ Произошла ошибка при получении курсов. Попробуйте позже.")
     
     async def handle_get_rates_list(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -220,9 +248,22 @@ class RateHandler:
                 # Если парсер не сработал, пробуем кэш как fallback
                 cached_data = self.cache.get_cached_rates()
                 if cached_data:
-                    data = cached_data
-                    logger.info("Парсер недоступен, используем кэшированные данные для списка")
+                    # Проверяем формат кэшированных данных
+                    if isinstance(cached_data, list):
+                        # Старый формат - простой список, конвертируем в новый
+                        data = {'sell': cached_data, 'buy': []}
+                        logger.info("Парсер недоступен, используем кэшированные данные (старый формат)")
+                    elif isinstance(cached_data, dict) and 'sell' in cached_data:
+                        # Новый формат
+                        data = cached_data
+                        logger.info("Парсер недоступен, используем кэшированные данные (новый формат)")
+                    else:
+                        logger.error(f"Неизвестный формат кэшированных данных: {type(cached_data)}")
+                        data = None
                 else:
+                    data = None
+                
+                if not data:
                     error_msg = f"❌ Ошибка получения данных: {result.get('error', 'Неизвестная ошибка')}"
                     await query.edit_message_text(error_msg)
                     return
@@ -234,12 +275,15 @@ class RateHandler:
                     self.cache.set_cached_rates(data)
             
             if data:
+                # Получаем данные продажи (USDT → RUB) для списка топ обменников
+                sell_data = data.get('sell', [])
+                
                 # Логируем информацию для отладки
-                logger.info(f"Список курсов: найдено {len(data)} обменников")
-                logger.info(f"Первый обменник: {data[0] if data else 'Нет данных'}")
+                logger.info(f"Список курсов: найдено {len(sell_data)} обменников")
+                logger.info(f"Первый обменник: {sell_data[0] if sell_data else 'Нет данных'}")
                 
                 # Берем топ-5 обменников
-                top_exchangers = data[:5]
+                top_exchangers = sell_data[:5]
                 
                 # Формируем сообщение
                 message = "💱 USDT/RUB • Топ-5 обменников\n"
@@ -277,9 +321,9 @@ class RateHandler:
                 await query.edit_message_text(message, parse_mode='HTML', reply_markup=reply_markup, disable_web_page_preview=True)
                 
                 # Логируем запрос курса в БД
-                rates = [ex['rate'] for ex in data]
+                rates = [ex['rate'] for ex in sell_data]
                 exchange_data = {
-                    'avg_rate': sum(rates) / len(rates)
+                    'avg_rate': sum(rates) / len(rates) if rates else 0
                 }
                 self.db.log_exchange_request(user.id, exchange_data)
                 
@@ -294,5 +338,5 @@ class RateHandler:
             logger.error(f"Ошибка BestChange в списке курсов: {e}")
             await query.edit_message_text("❌ Ошибка получения списка курсов. Попробуйте позже.")
         except Exception as e:
-            logger.error(f"Ошибка в handle_get_rates_list: {e}")
+            logger.error(f"Ошибка в handle_get_rates_list: {e}", exc_info=True)
             await query.edit_message_text("❌ Произошла ошибка при получении списка курсов. Попробуйте позже.")

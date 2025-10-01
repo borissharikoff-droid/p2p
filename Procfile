@@ -1,1 +1,1 @@
-web: python telegram_bot_refactored.py
+web: python telegram_bot.py
