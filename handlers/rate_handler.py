@@ -87,19 +87,18 @@ class RateHandler:
             
             # Обрабатываем старый формат кэша (список)
             if isinstance(cached_data, list):
-                # Если кэш в старом формате, используем разные курсы
+                # Если кэш в старом формате, используем средний курс
                 if not cached_data:
                     return None
                 rates = [ex['rate'] for ex in cached_data[:5]]
                 avg_rate = sum(rates) / len(rates)
-                worst_rate = min(rates)
                 
                 if from_currency == "RUB" and to_currency == "USDT":
-                    # Рубли в USDT - используем худший курс как курс покупки
-                    return amount / worst_rate
+                    # Рубли в USDT - используем средний курс
+                    return amount / avg_rate
                 elif from_currency == "USDT" and to_currency == "RUB":
-                    # USDT в рубли - используем худший курс как курс продажи
-                    return amount * worst_rate
+                    # USDT в рубли - используем средний курс
+                    return amount * avg_rate
                 else:
                     return None
             
@@ -110,26 +109,26 @@ class RateHandler:
             if from_currency == "RUB" and to_currency == "USDT":
                 # Рубли в USDT - нужен курс ПОКУПКИ USDT
                 if buy_data:
-                    # Используем лучший курс покупки (минимальный)
+                    # Используем средний курс покупки из топ-5
                     buy_rates = [ex['rate'] for ex in buy_data[:5]]
-                    best_buy_rate = min(buy_rates)
-                    return amount / best_buy_rate
+                    avg_buy_rate = sum(buy_rates) / len(buy_rates)
+                    return amount / avg_buy_rate
                 elif sell_data:
-                    # Если данных покупки нет, используем худший курс продажи как курс покупки
+                    # Если данных покупки нет, используем средний курс продажи как курс покупки
                     sell_rates = [ex['rate'] for ex in sell_data[:5]]
-                    worst_sell_rate = min(sell_rates)
-                    # Используем худший курс продажи как курс покупки (пользователь платит больше)
-                    return amount / worst_sell_rate
+                    avg_sell_rate = sum(sell_rates) / len(sell_rates)
+                    # Используем средний курс продажи как курс покупки
+                    return amount / avg_sell_rate
                 else:
                     return None
                     
             elif from_currency == "USDT" and to_currency == "RUB":
                 # USDT в рубли - нужен курс ПРОДАЖИ USDT
                 if sell_data:
-                    # Используем худший курс продажи (минимальный)
+                    # Используем средний курс продажи из топ-5
                     sell_rates = [ex['rate'] for ex in sell_data[:5]]
-                    worst_sell_rate = min(sell_rates)
-                    return amount * worst_sell_rate
+                    avg_sell_rate = sum(sell_rates) / len(sell_rates)
+                    return amount * avg_sell_rate
                 else:
                     return None
             else:
