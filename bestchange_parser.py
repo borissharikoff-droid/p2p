@@ -19,12 +19,12 @@ class BestChangeParser:
     
     def __init__(self):
         self.base_url = "https://www.bestchange.com"
-        # URL для покупки USDT (Наличные RUB → USDT TRC20) в Москве
-        # Источник: https://www.bestchange.com/cash-ruble-to-tether-trc20-in-msk.html
-        self.buy_url = "https://www.bestchange.com/cash-ruble-to-tether-trc20-in-msk.html"
-        # URL для продажи USDT (USDT TRC20 → Наличные RUB) в Москве
-        # Источник: https://www.bestchange.com/tether-trc20-to-cash-ruble-in-msk.html
-        self.sell_url = "https://www.bestchange.com/tether-trc20-to-cash-ruble-in-msk.html"
+        # URL для покупки USDT (T‑Bank RUB → USDT TRC20)
+        # Источник: https://www.bestchange.com/tinkoff-to-tether-trc20.html
+        self.buy_url = "https://www.bestchange.com/tinkoff-to-tether-trc20.html"
+        # URL для продажи USDT (USDT TRC20 → T‑Bank RUB)
+        # Источник: https://www.bestchange.com/tether-trc20-to-tinkoff.html
+        self.sell_url = "https://www.bestchange.com/tether-trc20-to-tinkoff.html"
         self.session = requests.Session()
         
         # Заголовки для имитации браузера
@@ -210,8 +210,8 @@ class BestChangeParser:
         print("Запуск парсера BestChange...")
         
         try:
-            # Парсим страницу ПРОДАЖИ USDT TRC20 → Наличные RUB (Москва)
-            print("Парсинг страницы продажи USDT TRC20 → Cash RUB (Москва)...")
+            # Парсим страницу ПРОДАЖИ USDT TRC20 → T‑Bank RUB
+            print("Парсинг страницы продажи USDT TRC20 → T‑Bank RUB...")
             sell_content = self.get_page_content(self.sell_url)
             sell_data = self.parse_exchange_rates(sell_content, rate_from='get')
             if not sell_data:
@@ -219,8 +219,8 @@ class BestChangeParser:
             sell_sorted = self.sort_by_reviews(sell_data)
             print(f"Найдено {len(sell_sorted)} обменников для продажи")
             
-            # Парсим страницу ПОКУПКИ Наличные RUB → USDT TRC20 (Москва)
-            print("Парсинг страницы покупки Cash RUB → USDT TRC20 (Москва)...")
+            # Парсинг страницы ПОКУПКИ T‑Bank RUB → USDT TRC20
+            print("Парсинг страницы покупки T‑Bank RUB → USDT TRC20...")
             buy_data = []
             try:
                 buy_content = self.get_page_content(self.buy_url)
