@@ -52,20 +52,36 @@ class GrinexParser:
             bid_price = None
             ask_price = None
             
-            # Попробуем найти цены в различных элементах
-            price_elements = soup.find_all(['span', 'div', 'td'], class_=re.compile(r'(price|bid|ask|buy|sell)', re.I))
+            # Ищем цены в тексте страницы по ключевым словам
+            page_text = soup.get_text()
             
-            for element in price_elements:
-                text = element.get_text(strip=True)
-                # Ищем числа с точкой (цены)
-                price_match = re.search(r'(\d+\.?\d*)', text)
-                if price_match:
-                    price = float(price_match.group(1))
-                    if 1 < price < 1000:  # Разумный диапазон цен
-                        if 'bid' in element.get('class', []) or 'buy' in element.get('class', []):
-                            bid_price = price
-                        elif 'ask' in element.get('class', []) or 'sell' in element.get('class', []):
-                            ask_price = price
+            # Ищем "Продать USDT" и "Купить USDT" секции
+            sell_match = re.search(r'Продать USDT.*?(\d+\.\d{2})\s*A7A5', page_text, re.DOTALL)
+            buy_match = re.search(r'Купить USDT.*?(\d+\.\d{2})\s*A7A5', page_text, re.DOTALL)
+            
+            if sell_match:
+                bid_price = float(sell_match.group(1))
+                logger.info(f"Найдена цена продажи USDT: {bid_price}")
+            
+            if buy_match:
+                ask_price = float(buy_match.group(1))
+                logger.info(f"Найдена цена покупки USDT: {ask_price}")
+            
+            # Если не нашли по ключевым словам, попробуем найти в элементах
+            if not bid_price or not ask_price:
+                price_elements = soup.find_all(['span', 'div', 'td'], class_=re.compile(r'(price|bid|ask|buy|sell)', re.I))
+                
+                for element in price_elements:
+                    text = element.get_text(strip=True)
+                    # Ищем числа с точкой (цены)
+                    price_match = re.search(r'(\d+\.?\d*)', text)
+                    if price_match:
+                        price = float(price_match.group(1))
+                        if 1 < price < 1000:  # Разумный диапазон цен
+                            if 'bid' in element.get('class', []) or 'buy' in element.get('class', []):
+                                bid_price = price
+                            elif 'ask' in element.get('class', []) or 'sell' in element.get('class', []):
+                                ask_price = price
             
             # Если не нашли по классам, попробуем найти любые цены на странице
             if not bid_price or not ask_price:
