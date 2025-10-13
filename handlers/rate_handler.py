@@ -46,29 +46,47 @@ class RateHandler:
             if cached_data:
                 # Проверяем формат кэшированных данных
                 if isinstance(cached_data, list):
-                    # Старый формат - простой список
+                    # Старый формат - простой список (нет разделения buy/sell)
                     rates = [ex['rate'] for ex in cached_data]
+                    if rates:
+                        mid_rate = sum(rates) / len(rates)
+                    else:
+                        mid_rate = None
                 elif isinstance(cached_data, dict) and 'sell' in cached_data:
-                    # Новый формат - используем данные продажи
-                    rates = [ex['rate'] for ex in cached_data['sell']]
+                    # Новый формат - считаем средние buy и sell, затем среднее между ними
+                    sell_rates = [ex['rate'] for ex in cached_data.get('sell', [])]
+                    buy_rates = [ex['rate'] for ex in cached_data.get('buy', [])]
+                    avg_sell = sum(sell_rates) / len(sell_rates) if sell_rates else None
+                    avg_buy = sum(buy_rates) / len(buy_rates) if buy_rates else None
+                    if avg_buy is not None and avg_sell is not None:
+                        mid_rate = (avg_buy + avg_sell) / 2
+                    else:
+                        mid_rate = avg_buy if avg_buy is not None else (avg_sell if avg_sell is not None else None)
                 else:
                     logger.error(f"Неизвестный формат кэшированных данных в get_current_rate: {type(cached_data)}")
                     return None
                 
-                if rates:
-                    self.current_rate = sum(rates) / len(rates)
+                if mid_rate is not None:
+                    # Всегда добавляем +0.30 к полученному среднему
+                    self.current_rate = round(mid_rate + 0.30, 2)
                     return self.current_rate
             
             # Если кэша нет, получаем свежие данные
             result = self.parser.run()
             if result.get("success") and result["data"]:
-                # Используем данные продажи для расчета среднего курса
-                sell_data = result["data"].get('sell', [])
-                if sell_data:
-                    rates = [ex['rate'] for ex in sell_data]
-                    self.current_rate = sum(rates) / len(rates)
-                    # Сохраняем в кэш
-                    self.cache.set_cached_rates(result["data"])
+                data = result["data"]
+                sell_rates = [ex['rate'] for ex in data.get('sell', [])]
+                buy_rates = [ex['rate'] for ex in data.get('buy', [])]
+                avg_sell = sum(sell_rates) / len(sell_rates) if sell_rates else None
+                avg_buy = sum(buy_rates) / len(buy_rates) if buy_rates else None
+                if avg_buy is not None and avg_sell is not None:
+                    mid_rate = (avg_buy + avg_sell) / 2
+                else:
+                    mid_rate = avg_buy if avg_buy is not None else (avg_sell if avg_sell is not None else None)
+                if mid_rate is not None:
+                    # Сохраняем в кэш и возвращаем средний + 0.30
+                    self.cache.set_cached_rates(data)
+                    self.current_rate = round(mid_rate + 0.30, 2)
                     return self.current_rate
             
             return None
@@ -196,75 +214,25 @@ class RateHandler:
                     self.cache.set_cached_rates(data)
             
             if data:
-                # Получаем данные покупки и продажи
-                buy_data = data.get('buy', [])
-                sell_data = data.get('sell', [])
-                metrics = result.get('metrics', {})
-                
-                # Берем ТОЛЬКО ТОП-10 обменников с наибольшим количеством отзывов
-                top_10_buy = buy_data[:10]  # Топ-10 по отзывам для покупки
-                top_10_sell = sell_data[:10]  # Топ-10 по отзывам для продажи
-                
-                # Вычисляем курсы покупки (T-Bank RUB → USDT TRC20)
-                buy_rates = [ex['rate'] for ex in top_10_buy] if top_10_buy else []
-                avg_buy_rate = metrics.get('avg_buy_rate') if metrics else (sum(buy_rates) / len(buy_rates) if buy_rates else 0)
-                
-                # Вычисляем курсы продажи (USDT TRC20 → T-Bank RUB)
-                sell_rates = [ex['rate'] for ex in top_10_sell]
-                avg_sell_rate = metrics.get('avg_sell_rate') if metrics else (sum(sell_rates) / len(sell_rates) if sell_rates else 0)
-                
-                # Логируем информацию о курсах для отладки
-                logger.info(f"Парсинг курсов: найдено {len(buy_data)} обменников покупки, {len(sell_data)} обменников продажи")
-                if buy_rates:
-                    logger.info(f"Диапазон курсов покупки (топ-10): {min(buy_rates):.4f} - {max(buy_rates):.4f} RUB")
-                    logger.info(f"Средний курс покупки (топ-10): {avg_buy_rate:.4f} RUB")
+                # Считаем средний между покупкой и продажей и прибавляем 0.30
+                buy_rates = [ex['rate'] for ex in data.get('buy', [])]
+                sell_rates = [ex['rate'] for ex in data.get('sell', [])]
+                avg_buy_rate = (sum(buy_rates) / len(buy_rates)) if buy_rates else None
+                avg_sell_rate = (sum(sell_rates) / len(sell_rates)) if sell_rates else None
+                if avg_buy_rate is not None and avg_sell_rate is not None:
+                    mid = (avg_buy_rate + avg_sell_rate) / 2
                 else:
-                    logger.info("Данные покупки недоступны")
-                if sell_rates:
-                    logger.info(f"Диапазон курсов продажи (топ-10): {min(sell_rates):.4f} - {max(sell_rates):.4f} RUB")
-                    logger.info(f"Средний курс продажи (топ-10): {avg_sell_rate:.4f} RUB")
-                top_buy_exchangers = [f"{ex.get('exchanger_name', ex.get('name', 'Неизвестный'))}: {ex['rate']:.4f} ({ex.get('reviews_count', 0)} отзывов)" for ex in top_10_buy[:3]] if top_10_buy else []
-                top_sell_exchangers = [f"{ex.get('exchanger_name', ex.get('name', 'Неизвестный'))}: {ex['rate']:.4f} ({ex.get('reviews_count', 0)} отзывов)" for ex in top_10_sell[:3]]
-                logger.info(f"Топ-3 обменника покупки: {top_buy_exchangers}")
-                logger.info(f"Топ-3 обменника продажи: {top_sell_exchangers}")
-                
-                # Формируем сообщение в указанном формате
-                # У нас есть РЕАЛЬНЫЕ данные продажи от топ-15 обменников
-                best_sell_rate = max(sell_rates)  # Лучший курс продажи USDT (больше RUB за USDT)
-                worst_sell_rate = min(sell_rates) # Худший курс продажи USDT (меньше RUB за USDT)
-                
-                message = f"💱 USDT TRC20/T-Bank RUB • Актуальные курсы (топ-10 обменников)\n"
-                message += f"━━━━━━━━━━━━━━━━━\n"
-                message += f"💰 Средний курс продажи: {avg_sell_rate:.2f}₽ за 1 USDT\n"
-                message += f"📈 Лучший курс продажи: {best_sell_rate:.2f}₽ за 1 USDT\n"
-                message += f"📉 Худший курс продажи: {worst_sell_rate:.2f}₽ за 1 USDT\n"
-                if buy_rates:
-                    best_buy_rate = min(buy_rates)   # Лучший курс покупки USDT (меньше RUB за USDT)
-                    worst_buy_rate = max(buy_rates)  # Худший курс покупки USDT (больше RUB за USDT)
-                    message += f"💰 Средний курс покупки: {avg_buy_rate:.2f}₽ за 1 USDT\n"
-                    message += f"📉 Лучший курс покупки: {best_buy_rate:.2f}₽ за 1 USDT\n"
-                message += f"━━━━━━━━━━━━━━━━━\n"
-                message += f"🕘 Обновлено: {get_moscow_time().strftime('%H:%M • %d.%m.%Y')}"
-                
-                # Создаем клавиатуру с кнопками
-                keyboard = [
-                    [InlineKeyboardButton("♻️ Обновить курс", callback_data="get_rate")],
-                    [InlineKeyboardButton("📈 Топ обменников", callback_data="get_rates_list")],
-                    [InlineKeyboardButton("📊 Отслеживание цен", callback_data="tracking_menu")],
-                    [InlineKeyboardButton("💼 Кошельки USDT", callback_data="wallets_menu")],
-                    [InlineKeyboardButton("🆘 Поддержка", url=bot_config.support_url)]
-                ]
-                reply_markup = InlineKeyboardMarkup(keyboard)
-                
-                await query.edit_message_text(message, parse_mode='HTML', reply_markup=reply_markup)
-                
-                # Логируем запрос курса в БД
-                exchange_data = {
-                    'avg_buy_rate': avg_buy_rate,
-                    'avg_sell_rate': avg_sell_rate
-                }
+                    mid = avg_buy_rate if avg_buy_rate is not None else (avg_sell_rate if avg_sell_rate is not None else None)
+                if mid is None:
+                    await query.edit_message_text("❌ Не найдено данных об обменниках")
+                    response_time = time.time() - start_time
+                    self.db.log_command(user.id, 'get_rate', '', response_time)
+                    return
+                rate_value = round(mid + 0.30, 2)
+                await query.edit_message_text(f"{rate_value:.2f}")
+                # Логируем простое значение в БД
+                exchange_data = {'mid_plus_0_30': rate_value}
                 self.db.log_exchange_request(user.id, exchange_data)
-                
             else:
                 await query.edit_message_text("❌ Не найдено данных об обменниках")
             

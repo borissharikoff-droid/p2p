@@ -85,108 +85,31 @@ class InlineHandler:
     async def handle_inline_query(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Обработчик inline запросов"""
         try:
-            query = update.inline_query.query.strip()
+            # Всегда возвращаем только значение текущего курса (с учетом +0.30 внутри rate_handler)
+            _ = update.inline_query.query.strip()  # сохраняем поведение чтения запроса
             user_id = update.inline_query.from_user.id
-            
-            if not query:
-                # Если запрос пустой, показываем подсказки
+            rate = self.rate_handler.get_current_rate()
+            if not rate:
                 results = [
                     InlineQueryResultArticle(
                         id=str(uuid.uuid4()),
-                        title="💡 Введите сумму для конвертации",
-                        description="Например: 8000 или 500.50",
+                        title="❌ Ошибка получения курса",
+                        description="Попробуйте позже",
                         input_message_content=InputTextMessageContent(
-                            "💱 DOX // P2P\n\n"
-                            "Введите сумму для конвертации валют:\n"
-                            "• 8000 — показать все варианты\n"
-                            "• 8000 usdt — конвертация USDT\n"
-                            "• 8000 rub — конвертация рублей\n"
-                            "• 8000 usdt кошелек — с выбором кошелька\n\n"
-                            "Пример: @DoxP2P_bot 8000"
-                        )
-                    ),
-                    InlineQueryResultArticle(
-                        id=str(uuid.uuid4()),
-                        title="💼 Создать чек с кошельком",
-                        description="Пример: 10000 usdt мой_кошелек",
-                        input_message_content=InputTextMessageContent(
-                            "💼 Создание чека с кошельком\n\n"
-                            "Формат: @DoxP2P_bot [сумма] usdt [название]\n\n"
-                            "Примеры:\n"
-                            "• @DoxP2P_bot 10000 usdt мой_кошелек\n"
-                            "• @DoxP2P_bot 50000 usdt работа\n"
-                            "• @DoxP2P_bot 15000 usdt (без названия)\n\n"
-                            "💡 Название кошелька поможет различать разные кошельки"
-                        )
-                    ),
-                    InlineQueryResultArticle(
-                        id=str(uuid.uuid4()),
-                        title="🔄 Быстрая конвертация",
-                        description="Просто введите сумму",
-                        input_message_content=InputTextMessageContent(
-                            "🔄 Быстрая конвертация валют\n\n"
-                            "Просто введите сумму:\n"
-                            "• 1000 — конвертация рублей в USDT\n"
-                            "• 50.5 — конвертация USDT в рубли\n\n"
-                            "Бот автоматически определит валюту по размеру суммы:\n"
-                            "• Большие числа (1000+) = рубли → USDT\n"
-                            "• Малые числа (<100) = USDT → рубли"
+                            "❌ Не удалось получить актуальный курс. Попробуйте позже."
                         )
                     )
                 ]
             else:
-                # Парсим запрос: сумма + валюта + кошелек
-                parsed = self.parse_inline_query(query)
-                
-                if not parsed['valid']:
-                    results = [
-                        InlineQueryResultArticle(
-                            id=str(uuid.uuid4()),
-                            title="❌ Неверный формат",
-                            description=parsed['error'],
-                            input_message_content=InputTextMessageContent(
-                                f"❌ {parsed['error']}\n\n"
-                                "Правильный формат:\n"
-                                "• 1000 (показать все варианты)\n"
-                                "• 1000 usdt\n"
-                                "• 500.50 rub\n"
-                                "• 1000 usdt wallet1"
-                            )
-                        )
-                    ]
-                else:
-                    amount = parsed['amount']
-                    currency = parsed['currency']
-                    wallet_name = parsed.get('wallet')
-                    
-                    # Получаем текущий курс
-                    rate = self.rate_handler.get_current_rate()
-                    if not rate:
-                        results = [
-                            InlineQueryResultArticle(
-                                id=str(uuid.uuid4()),
-                                title="❌ Ошибка получения курса",
-                                description="Попробуйте позже",
-                                input_message_content=InputTextMessageContent(
-                                    "❌ Не удалось получить актуальный курс. Попробуйте позже."
-                                )
-                            )
-                        ]
-                    else:
-                        # Если валюта не указана - показываем варианты для обеих валют + кошельки
-                        if currency is None:
-                            results = await self.create_dual_currency_suggestions(user_id, amount, rate)
-                        # Если валюта указана, но кошелек не выбран - показываем и конвертацию, и кошельки
-                        elif not wallet_name and currency in ['USDT', 'RUB']:
-                            conversion_results = self.create_conversion_results(amount, currency, rate)
-                            wallet_results = await self.create_wallet_suggestions(user_id, amount, currency)
-                            results = conversion_results + wallet_results
-                        # Если указан кошелек, создаем сообщение для отправителя
-                        elif wallet_name:
-                            results = await self.create_payment_message(user_id, amount, currency, wallet_name, rate)
-                        # Обычная конвертация без кошелька
-                        else:
-                            results = self.create_conversion_results(amount, currency, rate)
+                rate_text = f"{rate:.2f}"
+                results = [
+                    InlineQueryResultArticle(
+                        id=str(uuid.uuid4()),
+                        title=rate_text,
+                        description="Текущий курс USDT (средний +0.30)",
+                        input_message_content=InputTextMessageContent(rate_text)
+                    )
+                ]
             
             await update.inline_query.answer(results, cache_time=60)
             
