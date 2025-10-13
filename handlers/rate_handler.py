@@ -229,7 +229,15 @@ class RateHandler:
                     self.db.log_command(user.id, 'get_rate', '', response_time)
                     return
                 rate_value = round(mid + 0.30, 2)
-                await query.edit_message_text(f"{rate_value:.2f}")
+                # Формат ответа по требованию
+                message = (
+                    "💱 USDT/RUB • Актуальные курсы\n"
+                    "━━━━━━━━━━━━━━━━━\n"
+                    f"💰 Средний курс: {rate_value:.2f}₽ за 1 USDT\n"
+                    "━━━━━━━━━━━━━━━━━\n"
+                    f"🕘 Обновлено: {get_moscow_time().strftime('%H:%M • %d.%m.%Y')}"
+                )
+                await query.edit_message_text(message)
                 # Логируем простое значение в БД
                 exchange_data = {'mid_plus_0_30': rate_value}
                 self.db.log_exchange_request(user.id, exchange_data)

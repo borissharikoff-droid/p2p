@@ -85,31 +85,108 @@ class InlineHandler:
     async def handle_inline_query(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Обработчик inline запросов"""
         try:
-            # Всегда возвращаем только значение текущего курса (с учетом +0.30 внутри rate_handler)
-            _ = update.inline_query.query.strip()  # сохраняем поведение чтения запроса
+            query = update.inline_query.query.strip()
             user_id = update.inline_query.from_user.id
-            rate = self.rate_handler.get_current_rate()
-            if not rate:
+            
+            if not query:
+                # Если запрос пустой, показываем подсказки
                 results = [
                     InlineQueryResultArticle(
                         id=str(uuid.uuid4()),
-                        title="❌ Ошибка получения курса",
-                        description="Попробуйте позже",
+                        title="💡 Введите сумму для конвертации",
+                        description="Например: 8000 или 500.50",
                         input_message_content=InputTextMessageContent(
-                            "❌ Не удалось получить актуальный курс. Попробуйте позже."
+                            "💱 DOX // P2P\n\n"
+                            "Введите сумму для конвертации валют:\n"
+                            "• 8000 — показать все варианты\n"
+                            "• 8000 usdt — конвертация USDT\n"
+                            "• 8000 rub — конвертация рублей\n"
+                            "• 8000 usdt кошелек — с выбором кошелька\n\n"
+                            "Пример: @DoxP2P_bot 8000"
+                        )
+                    ),
+                    InlineQueryResultArticle(
+                        id=str(uuid.uuid4()),
+                        title="💼 Создать чек с кошельком",
+                        description="Пример: 10000 usdt мой_кошелек",
+                        input_message_content=InputTextMessageContent(
+                            "💼 Создание чека с кошельком\n\n"
+                            "Формат: @DoxP2P_bot [сумма] usdt [название]\n\n"
+                            "Примеры:\n"
+                            "• @DoxP2P_bot 10000 usdt мой_кошелек\n"
+                            "• @DoxP2P_bot 50000 usdt работа\n"
+                            "• @DoxP2P_bot 15000 usdt (без названия)\n\n"
+                            "💡 Название кошелька поможет различать разные кошельки"
+                        )
+                    ),
+                    InlineQueryResultArticle(
+                        id=str(uuid.uuid4()),
+                        title="🔄 Быстрая конвертация",
+                        description="Просто введите сумму",
+                        input_message_content=InputTextMessageContent(
+                            "🔄 Быстрая конвертация валют\n\n"
+                            "Просто введите сумму:\n"
+                            "• 1000 — конвертация рублей в USDT\n"
+                            "• 50.5 — конвертация USDT в рубли\n\n"
+                            "Бот автоматически определит валюту по размеру суммы:\n"
+                            "• Большие числа (1000+) = рубли → USDT\n"
+                            "• Малые числа (<100) = USDT → рубли"
                         )
                     )
                 ]
             else:
-                rate_text = f"{rate:.2f}"
-                results = [
-                    InlineQueryResultArticle(
-                        id=str(uuid.uuid4()),
-                        title=rate_text,
-                        description="Текущий курс USDT (средний +0.30)",
-                        input_message_content=InputTextMessageContent(rate_text)
-                    )
-                ]
+                # Парсим запрос: сумма + валюта + кошелек
+                parsed = self.parse_inline_query(query)
+                
+                if not parsed['valid']:
+                    results = [
+                        InlineQueryResultArticle(
+                            id=str(uuid.uuid4()),
+                            title="❌ Неверный формат",
+                            description=parsed['error'],
+                            input_message_content=InputTextMessageContent(
+                                f"❌ {parsed['error']}\n\n"
+                                "Правильный формат:\n"
+                                "• 1000 (показать все варианты)\n"
+                                "• 1000 usdt\n"
+                                "• 500.50 rub\n"
+                                "• 1000 usdt wallet1"
+                            )
+                        )
+                    ]
+                else:
+                    amount = parsed['amount']
+                    currency = parsed['currency']
+                    wallet_name = parsed.get('wallet')
+                    
+                    # Получаем текущий общий курс (уже средний +0.30)
+                    rate = self.rate_handler.get_current_rate()
+                    if not rate:
+                        results = [
+                            InlineQueryResultArticle(
+                                id=str(uuid.uuid4()),
+                                title="❌ Ошибка получения курса",
+                                description="Попробуйте позже",
+                                input_message_content=InputTextMessageContent(
+                                    "❌ Не удалось получить актуальный курс. Попробуйте позже."
+                                )
+                            )
+                        ]
+                    else:
+                        # Если валюта не указана - показываем варианты для обеих валют + кошельки
+                        if currency is None:
+                            results = await self.create_dual_currency_suggestions(user_id, amount, rate)
+                        # Если валюта указана, но кошелек не выбран - показываем и конвертацию, и кошельки
+                        elif not wallet_name and currency in ['USDT', 'RUB']:
+                            conversion_results = self.create_conversion_results(amount, currency, rate)
+                            wallet_results = await self.create_wallet_suggestions(user_id, amount, currency)
+                            results = conversion_results + wallet_results
+                        # Если указан кошелек, создаем сообщение для отправителя
+                        elif wallet_name:
+                            results = await self.create_payment_message(user_id, amount, currency, wallet_name, rate)
+                        # Обычная конвертация без кошелька
+                        else:
+                            results = self.create_conversion_results(amount, currency, rate)
             
             await update.inline_query.answer(results, cache_time=60)
             
@@ -123,9 +200,7 @@ class InlineHandler:
             results = []
             
             # Конвертация USDT в рубли
-            rub_amount = self.rate_handler.convert_currency(amount, "USDT", "RUB")
-            # Вычисляем реальный курс продажи
-            sell_rate = rub_amount / amount if amount > 0 else rate
+            rub_amount = amount * rate
             results.append(
                 InlineQueryResultArticle(
                     id=f"usdt_to_rub_{amount}",
@@ -133,7 +208,7 @@ class InlineHandler:
                     description="Конвертировать USDT в рубли",
                     input_message_content=InputTextMessageContent(
                         f"💵 Конвертация валют\n\n"
-                        f"💰 Курс продажи: {sell_rate:.2f}₽ за 1 USDT\n"
+                        f"📊 Курс: {rate:.2f}₽ за 1 USDT\n"
                         f"💱 {amount:,.2f} USDT = {rub_amount:,.2f}₽\n\n"
                         f"🕘 Обновлено: {get_moscow_time().strftime('%H:%M %d.%m.%Y')}"
                     )
@@ -141,9 +216,7 @@ class InlineHandler:
             )
             
             # Конвертация рублей в USDT
-            usdt_amount = self.rate_handler.convert_currency(amount, "RUB", "USDT")
-            # Вычисляем реальный курс покупки
-            buy_rate = amount / usdt_amount if usdt_amount > 0 else rate
+            usdt_amount = amount / rate if rate > 0 else 0
             results.append(
                 InlineQueryResultArticle(
                     id=f"rub_to_usdt_{amount}",
@@ -151,7 +224,7 @@ class InlineHandler:
                     description="Конвертировать рубли в USDT",
                     input_message_content=InputTextMessageContent(
                         f"💵 Конвертация валют\n\n"
-                        f"💰 Курс покупки: {buy_rate:.2f}₽ за 1 USDT\n"
+                        f"📊 Курс: {rate:.2f}₽ за 1 USDT\n"
                         f"💱 {amount:,.2f}₽ = {usdt_amount:.4f} USDT\n\n"
                         f"🕘 Обновлено: {get_moscow_time().strftime('%H:%M %d.%m.%Y')}"
                     )
@@ -185,9 +258,7 @@ class InlineHandler:
         """Создает результаты для обычной конвертации без кошелька"""
         if currency == 'RUB':
             # Конвертируем рубли в USDT
-            usdt_amount = self.rate_handler.convert_currency(amount, "RUB", "USDT")
-            # Вычисляем реальный курс покупки
-            buy_rate = amount / usdt_amount if usdt_amount > 0 else rate
+            usdt_amount = amount / rate if rate > 0 else 0
             return [
                 InlineQueryResultArticle(
                     id=str(uuid.uuid4()),
@@ -195,7 +266,7 @@ class InlineHandler:
                     description=f"Конвертировать {amount:,.2f} рублей в USDT",
                     input_message_content=InputTextMessageContent(
                         f"💵 Конвертация валют\n\n"
-                        f"💰 Курс покупки: {buy_rate:.2f}₽ за 1 USDT\n"
+                        f"📊 Курс: {rate:.2f}₽ за 1 USDT\n"
                         f"💱 {amount:,.2f}₽ = {usdt_amount:.4f} USDT\n\n"
                         f"🕘 Обновлено: {get_moscow_time().strftime('%H:%M %d.%m.%Y')}"
                     )
@@ -203,9 +274,7 @@ class InlineHandler:
             ]
         else:
             # Конвертируем USDT в рубли
-            rub_amount = self.rate_handler.convert_currency(amount, "USDT", "RUB")
-            # Вычисляем реальный курс продажи
-            sell_rate = rub_amount / amount if amount > 0 else rate
+            rub_amount = amount * rate
             return [
                 InlineQueryResultArticle(
                     id=str(uuid.uuid4()),
@@ -213,7 +282,7 @@ class InlineHandler:
                     description=f"Конвертировать {amount:,.2f} USDT в рубли",
                     input_message_content=InputTextMessageContent(
                         f"💵 Конвертация валют\n\n"
-                        f"💰 Курс продажи: {sell_rate:.2f}₽ за 1 USDT\n"
+                        f"📊 Курс: {rate:.2f}₽ за 1 USDT\n"
                         f"💱 {amount:,.2f} USDT = {rub_amount:,.2f}₽\n\n"
                         f"🕘 Обновлено: {get_moscow_time().strftime('%H:%M %d.%m.%Y')}"
                     )
@@ -252,12 +321,12 @@ class InlineHandler:
                 
                 if currency == 'RUB':
                     # Пользователь хочет получить рубли, отправитель отправляет USDT
-                    usdt_to_send = self.rate_handler.convert_currency(amount, "RUB", "USDT")
+                    usdt_to_send = amount / rate if rate > 0 else 0
                     title = f"💸 {amount:,.0f}₽ → {usdt_to_send:.2f} USDT"
                     description = f"💼 {wallet_name} • Получить {amount:,.0f}₽"
                 else:
                     # Пользователь хочет получить USDT, отправитель отправляет рубли
-                    rub_to_send = self.rate_handler.convert_currency(amount, "USDT", "RUB")
+                    rub_to_send = amount * rate
                     title = f"💸 {amount:,.0f} USDT → {rub_to_send:,.0f}₽"
                     description = f"💼 {wallet_name} • Получить {amount:,.0f} USDT"
                 
@@ -323,7 +392,7 @@ class InlineHandler:
             # Создаем сообщение для отправителя
             if currency == 'RUB':
                 # Пользователь хочет получить рубли, отправитель отправляет USDT
-                usdt_to_send = self.rate_handler.convert_currency(amount, "RUB", "USDT")
+                usdt_to_send = amount / rate if rate > 0 else 0
                 message_text = (
                     f"💸 <b>Запрос на оплату</b>\n\n"
                     f"💰 Сумма к получению: {amount:,.2f}₽\n"
@@ -337,7 +406,7 @@ class InlineHandler:
                 description = f"Отправить {usdt_to_send:.4f} USDT на {wallet['label']}"
             else:
                 # Пользователь хочет получить USDT, отправитель отправляет рубли
-                rub_to_send = self.rate_handler.convert_currency(amount, "USDT", "RUB")
+                rub_to_send = amount * rate
                 message_text = (
                     f"💸 <b>Запрос на оплату</b>\n\n"
                     f"💵 Сумма к получению: {amount:,.2f} USDT\n"
