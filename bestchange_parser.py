@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Парсер курсов обмена USDT TRC20 в рубли T-Bank с сайта BestChange
+Парсер курсов обмена USDT TRC20 ↔︎ Наличные RUB (Москва) с сайта BestChange
 Сортирует обменники по количеству отзывов (топ-15)
 """
 
@@ -19,10 +19,12 @@ class BestChangeParser:
     
     def __init__(self):
         self.base_url = "https://www.bestchange.com"
-        # URL для покупки USDT (T-Bank RUB → USDT TRC20)
-        self.buy_url = "https://www.bestchange.com/tinkoff-to-tether-trc20.html"
-        # URL для продажи USDT (USDT TRC20 → T-Bank RUB)
-        self.sell_url = "https://www.bestchange.com/tether-trc20-to-tinkoff.html"
+        # URL для покупки USDT (Наличные RUB → USDT TRC20) в Москве
+        # Источник: https://www.bestchange.com/cash-ruble-to-tether-trc20-in-msk.html
+        self.buy_url = "https://www.bestchange.com/cash-ruble-to-tether-trc20-in-msk.html"
+        # URL для продажи USDT (USDT TRC20 → Наличные RUB) в Москве
+        # Источник: https://www.bestchange.com/tether-trc20-to-cash-ruble-in-msk.html
+        self.sell_url = "https://www.bestchange.com/tether-trc20-to-cash-ruble-in-msk.html"
         self.session = requests.Session()
         
         # Заголовки для имитации браузера
@@ -164,7 +166,7 @@ class BestChangeParser:
         
         output = []
         output.append("=" * 80)
-        output.append("КУРСЫ ОБМЕНА USDT TRC20 → РУБЛИ T-BANK")
+        output.append("КУРСЫ ОБМЕНА USDT TRC20 ↔︎ НАЛИЧНЫЕ RUB • Москва")
         output.append("=" * 80)
         output.append(f"Найдено обменников: {len(exchange_data)}")
         output.append(f"Время парсинга: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
@@ -195,14 +197,14 @@ class BestChangeParser:
         return filename
     
     def run(self) -> Dict[str, Union[bool, str, List[Dict], int, Dict[str, float]]]:
-        """Основной метод для запуска парсера - парсим USDT TRC20 → T-Bank RUB.
+        """Основной метод для запуска парсера - парсим USDT TRC20 ↔︎ Наличные RUB (Москва).
         Возвращает топ-10 обменников по отзывам и агрегаты (средний и лучший курсы).
         """
         print("Запуск парсера BestChange...")
         
         try:
-            # Парсим страницу ПРОДАЖИ USDT TRC20 → T-Bank RUB
-            print("Парсинг страницы продажи USDT TRC20 → T-Bank RUB...")
+            # Парсим страницу ПРОДАЖИ USDT TRC20 → Наличные RUB (Москва)
+            print("Парсинг страницы продажи USDT TRC20 → Cash RUB (Москва)...")
             sell_content = self.get_page_content(self.sell_url)
             sell_data = self.parse_exchange_rates(sell_content)
             if not sell_data:
@@ -210,8 +212,8 @@ class BestChangeParser:
             sell_sorted = self.sort_by_reviews(sell_data)
             print(f"Найдено {len(sell_sorted)} обменников для продажи")
             
-            # Пытаемся парсить страницу ПОКУПКИ T-Bank RUB → USDT TRC20
-            print("Парсинг страницы покупки T-Bank RUB → USDT TRC20...")
+            # Парсим страницу ПОКУПКИ Наличные RUB → USDT TRC20 (Москва)
+            print("Парсинг страницы покупки Cash RUB → USDT TRC20 (Москва)...")
             buy_data = []
             try:
                 buy_content = self.get_page_content(self.buy_url)
