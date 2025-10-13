@@ -36,22 +36,64 @@ class GrinexParser:
         self.session.headers.update(self.headers)
     
     def get_ticker_data(self) -> Optional[Dict]:
-        """Получает данные тикера USDT/A7A5 через API"""
+        """Получает данные тикера USDT/A7A5 через веб-скрапинг"""
         try:
-            logger.info(f"Загружаем данные тикера: {self.api_url}")
-            response = self.session.get(self.api_url, timeout=30)
+            logger.info(f"Загружаем страницу торгов: {self.trading_url}")
+            response = self.session.get(self.trading_url, timeout=30)
             response.raise_for_status()
             
-            data = response.json()
+            # Ищем bid/ask цены в HTML
+            from bs4 import BeautifulSoup
+            import re
+            
+            soup = BeautifulSoup(response.text, 'html.parser')
+            
+            # Ищем элементы с ценами (обычно в div с классами типа price, bid, ask)
+            bid_price = None
+            ask_price = None
+            
+            # Попробуем найти цены в различных элементах
+            price_elements = soup.find_all(['span', 'div', 'td'], class_=re.compile(r'(price|bid|ask|buy|sell)', re.I))
+            
+            for element in price_elements:
+                text = element.get_text(strip=True)
+                # Ищем числа с точкой (цены)
+                price_match = re.search(r'(\d+\.?\d*)', text)
+                if price_match:
+                    price = float(price_match.group(1))
+                    if 1 < price < 1000:  # Разумный диапазон цен
+                        if 'bid' in element.get('class', []) or 'buy' in element.get('class', []):
+                            bid_price = price
+                        elif 'ask' in element.get('class', []) or 'sell' in element.get('class', []):
+                            ask_price = price
+            
+            # Если не нашли по классам, попробуем найти любые цены на странице
+            if not bid_price or not ask_price:
+                all_text = soup.get_text()
+                prices = re.findall(r'(\d+\.?\d{2,4})', all_text)
+                prices = [float(p) for p in prices if 1 < float(p) < 1000]
+                if len(prices) >= 2:
+                    prices.sort()
+                    bid_price = prices[0]  # Меньшая цена = bid
+                    ask_price = prices[-1]  # Большая цена = ask
+            
+            if not bid_price or not ask_price:
+                raise BestChangeError("Не удалось найти цены bid/ask на странице")
+            
+            data = {
+                'bid': bid_price,
+                'ask': ask_price
+            }
+            
             logger.info(f"Получены данные тикера: {data}")
             return data
             
         except requests.RequestException as e:
-            logger.error(f"Ошибка при загрузке API: {e}")
+            logger.error(f"Ошибка при загрузке страницы: {e}")
             raise BestChangeError(f"Не удалось загрузить данные с Grinex: {e}")
-        except json.JSONDecodeError as e:
-            logger.error(f"Ошибка парсинга JSON: {e}")
-            raise BestChangeError(f"Неверный формат ответа от Grinex: {e}")
+        except Exception as e:
+            logger.error(f"Ошибка парсинга страницы: {e}")
+            raise BestChangeError(f"Не удалось извлечь цены с Grinex: {e}")
     
     def parse_rates(self, ticker_data: Dict) -> Dict[str, float]:
         """Парсит курсы покупки и продажи из данных тикера"""
