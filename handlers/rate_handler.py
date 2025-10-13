@@ -40,54 +40,45 @@ class RateHandler:
     def get_current_rate(self) -> Optional[float]:
         """Получить текущий курс USDT"""
         try:
+            # Вспомогательная функция: средний по топ-10 buy/sell +0.30
+            def _compute_mid_plus_margin(data: Any) -> Optional[float]:
+                if isinstance(data, list):
+                    # Legacy: нет разделения, берем топ-10 и усредняем
+                    base_rates = [ex['rate'] for ex in data[:10]]
+                    if not base_rates:
+                        return None
+                    mid = sum(base_rates) / len(base_rates)
+                    return round(mid + 0.30, 2)
+                if isinstance(data, dict):
+                    buy_top = [ex['rate'] for ex in data.get('buy', [])[:10]]
+                    sell_top = [ex['rate'] for ex in data.get('sell', [])[:10]]
+                    avg_buy = sum(buy_top) / len(buy_top) if buy_top else None
+                    avg_sell = sum(sell_top) / len(sell_top) if sell_top else None
+                    if avg_buy is not None and avg_sell is not None:
+                        mid = (avg_buy + avg_sell) / 2
+                    else:
+                        mid = avg_buy if avg_buy is not None else (avg_sell if avg_sell is not None else None)
+                    return round(mid + 0.30, 2) if mid is not None else None
+                return None
+
             # Сначала пытаемся получить из кэша
             cached_data = self.cache.get_cached_rates()
             
             if cached_data:
-                # Проверяем формат кэшированных данных
-                if isinstance(cached_data, list):
-                    # Старый формат - простой список (нет разделения buy/sell)
-                    rates = [ex['rate'] for ex in cached_data]
-                    if rates:
-                        mid_rate = sum(rates) / len(rates)
-                    else:
-                        mid_rate = None
-                elif isinstance(cached_data, dict) and 'sell' in cached_data:
-                    # Новый формат - считаем средние buy и sell, затем среднее между ними
-                    sell_rates = [ex['rate'] for ex in cached_data.get('sell', [])]
-                    buy_rates = [ex['rate'] for ex in cached_data.get('buy', [])]
-                    avg_sell = sum(sell_rates) / len(sell_rates) if sell_rates else None
-                    avg_buy = sum(buy_rates) / len(buy_rates) if buy_rates else None
-                    if avg_buy is not None and avg_sell is not None:
-                        mid_rate = (avg_buy + avg_sell) / 2
-                    else:
-                        mid_rate = avg_buy if avg_buy is not None else (avg_sell if avg_sell is not None else None)
-                else:
-                    logger.error(f"Неизвестный формат кэшированных данных в get_current_rate: {type(cached_data)}")
-                    return None
-                
-                if mid_rate is not None:
-                    # Всегда добавляем +0.30 к полученному среднему
-                    self.current_rate = round(mid_rate + 0.30, 2)
-                    return self.current_rate
+                mid_plus = _compute_mid_plus_margin(cached_data)
+                if mid_plus is not None:
+                    self.current_rate = mid_plus
+                    return mid_plus
             
             # Если кэша нет, получаем свежие данные
             result = self.parser.run()
             if result.get("success") and result["data"]:
                 data = result["data"]
-                sell_rates = [ex['rate'] for ex in data.get('sell', [])]
-                buy_rates = [ex['rate'] for ex in data.get('buy', [])]
-                avg_sell = sum(sell_rates) / len(sell_rates) if sell_rates else None
-                avg_buy = sum(buy_rates) / len(buy_rates) if buy_rates else None
-                if avg_buy is not None and avg_sell is not None:
-                    mid_rate = (avg_buy + avg_sell) / 2
-                else:
-                    mid_rate = avg_buy if avg_buy is not None else (avg_sell if avg_sell is not None else None)
-                if mid_rate is not None:
-                    # Сохраняем в кэш и возвращаем средний + 0.30
+                mid_plus = _compute_mid_plus_margin(data)
+                if mid_plus is not None:
                     self.cache.set_cached_rates(data)
-                    self.current_rate = round(mid_rate + 0.30, 2)
-                    return self.current_rate
+                    self.current_rate = mid_plus
+                    return mid_plus
             
             return None
             
@@ -214,20 +205,17 @@ class RateHandler:
                     self.cache.set_cached_rates(data)
             
             if data:
-                # Считаем средний между покупкой и продажей и прибавляем 0.30
-                buy_rates = [ex['rate'] for ex in data.get('buy', [])]
-                sell_rates = [ex['rate'] for ex in data.get('sell', [])]
-                avg_buy_rate = (sum(buy_rates) / len(buy_rates)) if buy_rates else None
-                avg_sell_rate = (sum(sell_rates) / len(sell_rates)) if sell_rates else None
-                if avg_buy_rate is not None and avg_sell_rate is not None:
-                    mid = (avg_buy_rate + avg_sell_rate) / 2
-                else:
-                    mid = avg_buy_rate if avg_buy_rate is not None else (avg_sell_rate if avg_sell_rate is not None else None)
-                if mid is None:
+                # Считаем по топ-10 buy/sell
+                buy_top = [ex['rate'] for ex in data.get('buy', [])[:10]]
+                sell_top = [ex['rate'] for ex in data.get('sell', [])[:10]]
+                avg_buy_rate = (sum(buy_top) / len(buy_top)) if buy_top else None
+                avg_sell_rate = (sum(sell_top) / len(sell_top)) if sell_top else None
+                if avg_buy_rate is None and avg_sell_rate is None:
                     await query.edit_message_text("❌ Не найдено данных об обменниках")
                     response_time = time.time() - start_time
                     self.db.log_command(user.id, 'get_rate', '', response_time)
                     return
+                mid = (avg_buy_rate + avg_sell_rate) / 2 if (avg_buy_rate is not None and avg_sell_rate is not None) else (avg_buy_rate if avg_buy_rate is not None else avg_sell_rate)
                 rate_value = round(mid + 0.30, 2)
                 # Формат ответа по требованию
                 message = (
