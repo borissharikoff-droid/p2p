@@ -57,8 +57,11 @@ class BestChangeParser:
             print(f"Ошибка при загрузке страницы: {e}")
             raise BestChangeError(f"Не удалось загрузить страницу: {e}")
     
-    def parse_exchange_rates(self, html_content: str) -> List[Dict]:
-        """Парсит курсы обмена из HTML"""
+    def parse_exchange_rates(self, html_content: str, rate_from: str = 'get') -> List[Dict]:
+        """Парсит курсы обмена из HTML
+        rate_from: 'get' — брать курс из колонки Get (сколько RUB за 1 USDT)
+                   'give' — брать курс из колонки Give (сколько RUB отдать за 1 USDT)
+        """
         soup = BeautifulSoup(html_content, 'lxml')
         exchange_data = []
         
@@ -90,11 +93,15 @@ class BestChangeParser:
                 if not exchanger_name or len(exchanger_name) < 2:
                     continue
                 
-                # Курс обмена - на странице USDT→RUB курс в ячейке 3 (колонка "Get")
+                # Курс обмена — колонка зависит от направления
                 if len(cells) < 4:
                     continue
-                    
-                rate_cell = cells[3]  # Ячейка "Get" - сколько RUB за 1 USDT
+
+                # BestChange таблица: [0]icon, [1]exchanger, [2]Give, [3]Get, [4]Reserve, [5]Reviews
+                if rate_from == 'give':
+                    rate_cell = cells[2]  # Сколько RUB нужно дать за 1 USDT
+                else:
+                    rate_cell = cells[3]  # Сколько RUB вы получите за 1 USDT
                 rate_text = rate_cell.get_text(strip=True)
                 
                 # Нормализуем запятую к точке и убираем пробелы-разделители тысяч
@@ -107,7 +114,7 @@ class BestChangeParser:
                 rate = float(rate_match.group(1))
                 
                 # Проверяем, что курс разумный (не 1.0, не слишком маленький)
-                if rate <= 1.5 or rate >= 200:
+                if rate <= 1.0 or rate >= 300:
                     continue
                 
                 # Резерв (в td.ar, ячейка 4)
@@ -206,7 +213,7 @@ class BestChangeParser:
             # Парсим страницу ПРОДАЖИ USDT TRC20 → Наличные RUB (Москва)
             print("Парсинг страницы продажи USDT TRC20 → Cash RUB (Москва)...")
             sell_content = self.get_page_content(self.sell_url)
-            sell_data = self.parse_exchange_rates(sell_content)
+            sell_data = self.parse_exchange_rates(sell_content, rate_from='get')
             if not sell_data:
                 raise BestChangeError("Не удалось извлечь данные об обменниках продажи")
             sell_sorted = self.sort_by_reviews(sell_data)
@@ -217,7 +224,8 @@ class BestChangeParser:
             buy_data = []
             try:
                 buy_content = self.get_page_content(self.buy_url)
-                buy_data = self.parse_exchange_rates(buy_content)
+                # Для cash→USDT берем цену из колонки Give (сколько RUB нужно отдать)
+                buy_data = self.parse_exchange_rates(buy_content, rate_from='give')
                 if buy_data:
                     buy_sorted = self.sort_by_reviews(buy_data)
                     print(f"Найдено {len(buy_sorted)} обменников для покупки")
