@@ -217,6 +217,10 @@ class RateHandler:
                     return
                 mid = (avg_buy_rate + avg_sell_rate) / 2 if (avg_buy_rate is not None and avg_sell_rate is not None) else (avg_buy_rate if avg_buy_rate is not None else avg_sell_rate)
                 rate_value = round(mid + 0.30, 2)
+                # Подробное логирование для верификации результата
+                logger.info(
+                    f"Калькуляция курса (Cash RUB, MSK): avg_buy_top10={avg_buy_rate}, avg_sell_top10={avg_sell_rate}, mid={mid}, final(+0.30)={rate_value}"
+                )
                 # Формат ответа по требованию
                 message = (
                     "💱 USDT/RUB • Актуальные курсы\n"
