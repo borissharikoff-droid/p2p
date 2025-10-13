@@ -70,14 +70,54 @@ class GrinexParser:
             # Если не нашли по классам, попробуем найти любые цены на странице
             if not bid_price or not ask_price:
                 all_text = soup.get_text()
+                logger.info(f"Текст страницы (первые 500 символов): {all_text[:500]}")
+                
+                # Ищем все числа с точкой
                 prices = re.findall(r'(\d+\.?\d{2,4})', all_text)
+                logger.info(f"Найденные цены на странице: {prices}")
+                
                 prices = [float(p) for p in prices if 1 < float(p) < 1000]
+                logger.info(f"Отфильтрованные цены: {prices}")
+                
                 if len(prices) >= 2:
                     prices.sort()
                     bid_price = prices[0]  # Меньшая цена = bid
                     ask_price = prices[-1]  # Большая цена = ask
+                    logger.info(f"Выбраны bid={bid_price}, ask={ask_price}")
+                elif len(prices) == 1:
+                    # Если только одна цена, используем её для обеих
+                    bid_price = ask_price = prices[0]
+                    logger.info(f"Одна цена найдена, используем для обеих: {bid_price}")
+            
+            # Если всё ещё не нашли, попробуем найти в JSON данных на странице
+            if not bid_price or not ask_price:
+                script_tags = soup.find_all('script')
+                for script in script_tags:
+                    if script.string and ('price' in script.string.lower() or 'bid' in script.string.lower() or 'ask' in script.string.lower()):
+                        logger.info(f"Найден скрипт с ценами: {script.string[:200]}")
+                        # Ищем JSON данные
+                        json_match = re.search(r'\{[^}]*"(?:price|bid|ask)"[^}]*\}', script.string)
+                        if json_match:
+                            try:
+                                import json
+                                data = json.loads(json_match.group(0))
+                                logger.info(f"JSON данные: {data}")
+                                if 'bid' in data:
+                                    bid_price = float(data['bid'])
+                                if 'ask' in data:
+                                    ask_price = float(data['ask'])
+                                if 'price' in data:
+                                    price = float(data['price'])
+                                    if not bid_price:
+                                        bid_price = price
+                                    if not ask_price:
+                                        ask_price = price
+                            except:
+                                pass
             
             if not bid_price or not ask_price:
+                logger.error("Не удалось найти цены bid/ask на странице")
+                logger.error(f"HTML содержимое (первые 1000 символов): {response.text[:1000]}")
                 raise BestChangeError("Не удалось найти цены bid/ask на странице")
             
             data = {
