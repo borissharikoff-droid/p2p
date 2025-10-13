@@ -54,18 +54,25 @@ class GrinexParser:
             
             # Ищем цены в тексте страницы по ключевым словам
             page_text = soup.get_text()
+            logger.info(f"Полный текст страницы: {page_text}")
             
-            # Ищем "Продать USDT" и "Купить USDT" секции
-            sell_match = re.search(r'Продать USDT.*?(\d+\.\d{2})\s*A7A5', page_text, re.DOTALL)
-            buy_match = re.search(r'Купить USDT.*?(\d+\.\d{2})\s*A7A5', page_text, re.DOTALL)
-            
-            if sell_match:
-                bid_price = float(sell_match.group(1))
-                logger.info(f"Найдена цена продажи USDT: {bid_price}")
-            
-            if buy_match:
-                ask_price = float(buy_match.group(1))
-                logger.info(f"Найдена цена покупки USDT: {ask_price}")
+            # Проверяем, не получили ли мы страницу бота вместо Grinex
+            if "Конвертация валют" in page_text or "Курс:" in page_text:
+                logger.error("Получена страница бота вместо Grinex, используем fallback")
+                bid_price = 80.0
+                ask_price = 82.0
+            else:
+                # Ищем "Продать USDT" и "Купить USDT" секции
+                sell_match = re.search(r'Продать USDT.*?(\d+\.\d{2})\s*A7A5', page_text, re.DOTALL)
+                buy_match = re.search(r'Купить USDT.*?(\d+\.\d{2})\s*A7A5', page_text, re.DOTALL)
+                
+                if sell_match:
+                    bid_price = float(sell_match.group(1))
+                    logger.info(f"Найдена цена продажи USDT: {bid_price}")
+                
+                if buy_match:
+                    ask_price = float(buy_match.group(1))
+                    logger.info(f"Найдена цена покупки USDT: {ask_price}")
             
             # Если не нашли по ключевым словам, попробуем найти в элементах
             if not bid_price or not ask_price:
