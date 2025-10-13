@@ -72,6 +72,7 @@ bot_database.db
 !/exceptions.py
 !/cache_manager.py
 !/bestchange_parser.py
+!/grinex_parser.py
 !/database_postgres.py
 !/handlers/
 !/cache/
