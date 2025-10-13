@@ -225,7 +225,16 @@ class RateHandler:
                     "━━━━━━━━━━━━━━━━━\n"
                     f"🕘 Обновлено: {get_moscow_time().strftime('%H:%M • %d.%m.%Y')}"
                 )
-                await query.edit_message_text(message)
+                # Вернем кнопки под сообщением
+                keyboard = [
+                    [InlineKeyboardButton("♻️ Обновить курс", callback_data="get_rate")],
+                    [InlineKeyboardButton("📈 Топ обменников", callback_data="get_rates_list")],
+                    [InlineKeyboardButton("📊 Отслеживание цен", callback_data="tracking_menu")],
+                    [InlineKeyboardButton("💼 Кошельки USDT", callback_data="wallets_menu")],
+                    [InlineKeyboardButton("🆘 Поддержка", url=bot_config.support_url)]
+                ]
+                reply_markup = InlineKeyboardMarkup(keyboard)
+                await query.edit_message_text(message, reply_markup=reply_markup)
                 # Логируем простое значение в БД
                 exchange_data = {'mid_plus_0_30': rate_value}
                 self.db.log_exchange_request(user.id, exchange_data)
