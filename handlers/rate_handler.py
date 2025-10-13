@@ -13,7 +13,7 @@ import pytz
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 
-from grinex_parser import GrinexParser
+from bestchange_parser import BestChangeParser
 from database import DatabaseManager
 from cache_manager import CacheManager
 from exceptions import BestChangeError
@@ -32,7 +32,7 @@ class RateHandler:
     """Обработчик курсов валют"""
     
     def __init__(self, db: DatabaseManager):
-        self.parser = GrinexParser()
+        self.parser = BestChangeParser()
         self.db = db
         self.cache = CacheManager()
         self.current_rate: Optional[float] = None
@@ -219,7 +219,7 @@ class RateHandler:
                 rate_value = round(mid + 0.30, 2)
                 # Подробное логирование для верификации результата
                 logger.info(
-                    f"Калькуляция курса (Grinex USDT/A7A5): avg_buy_top10={avg_buy_rate}, avg_sell_top10={avg_sell_rate}, mid={mid}, final(+0.30)={rate_value}"
+                    f"Калькуляция курса (BestChange T-Bank): avg_buy_top10={avg_buy_rate}, avg_sell_top10={avg_sell_rate}, mid={mid}, final(+0.30)={rate_value}"
                 )
                 # Формат ответа по требованию
                 message = (
