@@ -24,7 +24,7 @@ class CurrencyImageGenerator:
         
     def generate_currency_card(self, buy_rate: float, sell_rate: float, avg_rate: float) -> Optional[str]:
         """
-        Генерирует изображение с курсами валют
+        Генерирует изображение с курсами валют в стиле обменника
         
         Args:
             buy_rate: Курс покупки
@@ -49,8 +49,8 @@ class CurrencyImageGenerator:
             # Рисуем карточку с тенью
             self._draw_card_with_shadow(draw, card_x, card_y)
             
-            # Добавляем текст на карточку
-            self._add_currency_text(draw, card_x, card_y, buy_rate, sell_rate, avg_rate)
+            # Добавляем содержимое карточки в стиле обменника
+            self._add_exchange_interface(draw, card_x, card_y, avg_rate)
             
             # Сохраняем изображение
             image_path = "currency_rates.png"
@@ -114,9 +114,8 @@ class CurrencyImageGenerator:
             fill='white'
         )
     
-    def _add_currency_text(self, draw: ImageDraw.Draw, x: int, y: int, 
-                          buy_rate: float, sell_rate: float, avg_rate: float):
-        """Добавляет текст с курсами на карточку"""
+    def _add_exchange_interface(self, draw: ImageDraw.Draw, x: int, y: int, avg_rate: float):
+        """Добавляет интерфейс обменника на карточку"""
         try:
             # Пытаемся загрузить шрифты с поддержкой Unicode
             font_paths = [
@@ -127,63 +126,109 @@ class CurrencyImageGenerator:
             ]
             
             # Загружаем шрифты разных размеров
-            title_font = None
-            rate_font = None
+            currency_font = None
+            amount_font = None
             small_font = None
             
             for font_path in font_paths:
                 try:
-                    if title_font is None:
-                        title_font = ImageFont.truetype(font_path, 48)
-                    if rate_font is None:
-                        rate_font = ImageFont.truetype(font_path, 36)
+                    if currency_font is None:
+                        currency_font = ImageFont.truetype(font_path, 42)
+                    if amount_font is None:
+                        amount_font = ImageFont.truetype(font_path, 38)
                     if small_font is None:
-                        small_font = ImageFont.truetype(font_path, 24)
+                        small_font = ImageFont.truetype(font_path, 20)
                     break
                 except:
                     continue
             
             # Если не удалось загрузить шрифты, используем стандартные
-            if title_font is None:
-                title_font = ImageFont.load_default()
-            if rate_font is None:
-                rate_font = ImageFont.load_default()
+            if currency_font is None:
+                currency_font = ImageFont.load_default()
+            if amount_font is None:
+                amount_font = ImageFont.load_default()
             if small_font is None:
                 small_font = ImageFont.load_default()
             
-            # Заголовок
-            title = "USDT/RUB Курсы"
-            title_bbox = draw.textbbox((0, 0), title, font=title_font)
-            title_width = title_bbox[2] - title_bbox[0]
-            title_x = x + (self.card_width - title_width) // 2
-            draw.text((title_x, y + 40), title, fill='black', font=title_font)
+            # Рассчитываем суммы для отображения (примерные значения)
+            rub_amount = 20000  # 20,000 рублей
+            usdt_amount = rub_amount / avg_rate  # Конвертируем в USDT
             
-            # Курс покупки
-            buy_text = f"📈 Покупка: {buy_rate:.2f}₽"
-            draw.text((x + 40, y + 120), buy_text, fill='black', font=rate_font)
+            # Верхняя строка - RUB
+            rub_y = y + 80
+            
+            # Иконка рубля (серый круг)
+            icon_size = 50
+            icon_x = x + 60
+            icon_y = rub_y - 10
+            draw.ellipse([icon_x, icon_y, icon_x + icon_size, icon_y + icon_size], fill='#6b7280')
+            
+            # Символ рубля в иконке
+            rub_symbol_bbox = draw.textbbox((0, 0), "₽", font=currency_font)
+            rub_symbol_width = rub_symbol_bbox[2] - rub_symbol_bbox[0]
+            rub_symbol_height = rub_symbol_bbox[3] - rub_symbol_bbox[1]
+            draw.text((icon_x + (icon_size - rub_symbol_width) // 2, 
+                      icon_y + (icon_size - rub_symbol_height) // 2), 
+                     "₽", fill='white', font=currency_font)
+            
+            # Текст "RUB"
+            draw.text((icon_x + icon_size + 20, rub_y), "RUB", fill='black', font=currency_font)
+            
+            # Сумма в рублях
+            rub_text = f"{rub_amount:,}".replace(",", " ")
+            amount_bbox = draw.textbbox((0, 0), rub_text, font=amount_font)
+            amount_width = amount_bbox[2] - amount_bbox[0]
+            amount_x = x + self.card_width - amount_width - 60
+            draw.text((amount_x, rub_y), rub_text, fill='black', font=amount_font)
             
             # Разделительная линия
-            line_y = y + 220
+            line_y = y + 180
             draw.line([(x + 40, line_y), (x + self.card_width - 40, line_y)], fill='#e5e7eb', width=2)
             
             # Иконка обмена в центре линии
-            icon_x = x + self.card_width // 2 - 25
-            icon_y = line_y - 25
-            draw.ellipse([icon_x, icon_y, icon_x + 50, icon_y + 50], fill='#3b82f6')
+            exchange_icon_size = 40
+            exchange_icon_x = x + self.card_width // 2 - exchange_icon_size // 2
+            exchange_icon_y = line_y - exchange_icon_size // 2
+            draw.ellipse([exchange_icon_x, exchange_icon_y, 
+                         exchange_icon_x + exchange_icon_size, exchange_icon_y + exchange_icon_size], 
+                        fill='#3b82f6')
             
-            # Стрелки в иконке
-            draw.text((icon_x + 15, icon_y + 10), "↕", fill='white', font=small_font)
+            # Стрелки в иконке обмена
+            arrow_bbox = draw.textbbox((0, 0), "↕", font=small_font)
+            arrow_width = arrow_bbox[2] - arrow_bbox[0]
+            arrow_height = arrow_bbox[3] - arrow_bbox[1]
+            draw.text((exchange_icon_x + (exchange_icon_size - arrow_width) // 2,
+                      exchange_icon_y + (exchange_icon_size - arrow_height) // 2),
+                     "↕", fill='white', font=small_font)
             
-            # Курс продажи
-            sell_text = f"📉 Продажа: {sell_rate:.2f}₽"
-            draw.text((x + 40, y + 280), sell_text, fill='black', font=rate_font)
+            # Нижняя строка - USDT
+            usdt_y = y + 280
             
-            # Средний курс
-            avg_text = f"⚖️ Средний: {avg_rate:.2f}₽"
-            draw.text((x + 40, y + 340), avg_text, fill='black', font=rate_font)
+            # Иконка доллара (серый круг)
+            usdt_icon_x = x + 60
+            usdt_icon_y = usdt_y - 10
+            draw.ellipse([usdt_icon_x, usdt_icon_y, usdt_icon_x + icon_size, usdt_icon_y + icon_size], fill='#6b7280')
+            
+            # Символ доллара в иконке
+            usd_symbol_bbox = draw.textbbox((0, 0), "$", font=currency_font)
+            usd_symbol_width = usd_symbol_bbox[2] - usd_symbol_bbox[0]
+            usd_symbol_height = usd_symbol_bbox[3] - usd_symbol_bbox[1]
+            draw.text((usdt_icon_x + (icon_size - usd_symbol_width) // 2,
+                      usdt_icon_y + (icon_size - usd_symbol_height) // 2),
+                     "$", fill='white', font=currency_font)
+            
+            # Текст "USDT"
+            draw.text((usdt_icon_x + icon_size + 20, usdt_y), "USDT", fill='black', font=currency_font)
+            
+            # Сумма в USDT
+            usdt_text = f"{usdt_amount:.2f}"
+            usdt_amount_bbox = draw.textbbox((0, 0), usdt_text, font=amount_font)
+            usdt_amount_width = usdt_amount_bbox[2] - usdt_amount_bbox[0]
+            usdt_amount_x = x + self.card_width - usdt_amount_width - 60
+            draw.text((usdt_amount_x, usdt_y), usdt_text, fill='black', font=amount_font)
             
         except Exception as e:
-            logger.error(f"Ошибка добавления текста: {e}")
+            logger.error(f"Ошибка добавления интерфейса обменника: {e}")
 
 
 # Создаем глобальный экземпляр
