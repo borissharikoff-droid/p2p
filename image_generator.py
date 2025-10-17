@@ -72,52 +72,9 @@ class CurrencyImageGenerator:
         )
         
         # Заголовок "USDT/RUB" по центру вверху
-        try:
-            # Пробуем разные шрифты, поддерживающие кириллицу
-            font_paths = [
-                '/System/Library/Fonts/Arial.ttf',
-                '/System/Library/Fonts/Helvetica.ttc',
-                '/System/Library/Fonts/Times.ttc',
-                '/System/Library/Fonts/Courier.ttc',
-                '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
-                '/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf',
-                '/System/Library/Fonts/Supplemental/Arial Unicode MS.ttf',
-                '/System/Library/Fonts/Supplemental/Apple Symbols.ttf',
-                '/System/Library/Fonts/HelveticaNeue.ttc',
-                '/System/Library/Fonts/SF-Pro-Text-Regular.otf'
-            ]
-            
-            title_font = None
-            rate_font = None
-            
-            for font_path in font_paths:
-                try:
-                    # Тестируем шрифт на русском тексте
-                    test_font = ImageFont.truetype(font_path, 24)
-                    # Создаем тестовое изображение для проверки поддержки кириллицы
-                    test_img = Image.new('RGB', (100, 50), 'white')
-                    test_draw = ImageDraw.Draw(test_img)
-                    test_draw.text((10, 10), "Тест", font=test_font, fill='black')
-                    
-                    # Если дошли до сюда без ошибок, шрифт поддерживает кириллицу
-                    title_font = ImageFont.truetype(font_path, 24)
-                    rate_font = ImageFont.truetype(font_path, 32)
-                    logger.info(f"Используется шрифт: {font_path}")
-                    break
-                except Exception as e:
-                    logger.debug(f"Шрифт {font_path} не поддерживает кириллицу: {e}")
-                    continue
-            
-            if title_font is None:
-                # Fallback: используем default font с размером
-                title_font = ImageFont.load_default(size=24)
-                rate_font = ImageFont.load_default(size=32)
-                logger.warning("Не найден шрифт с поддержкой кириллицы, используется default")
-                
-        except Exception as e:
-            logger.error(f"Ошибка загрузки шрифтов: {e}")
-            title_font = ImageFont.load_default(size=24)
-            rate_font = ImageFont.load_default(size=32)
+        # Используем простой подход - латинские символы для совместимости
+        title_font = ImageFont.load_default(size=24)
+        rate_font = ImageFont.load_default(size=32)
         
         title_text = "USDT/RUB"
         title_bbox = draw.textbbox((0, 0), title_text, font=title_font)
@@ -131,17 +88,12 @@ class CurrencyImageGenerator:
         left_margin = card_x + 40
         right_margin = card_x + card_width - 40
         
-        # Текст слева (Покупка)
-        left_text = "Покупка"
-        try:
-            draw.text((left_margin, y_offset), left_text, fill='#000000', font=rate_font)
-        except Exception as e:
-            logger.warning(f"Ошибка отрисовки текста '{left_text}': {e}")
-            # Fallback: используем латинские символы
-            draw.text((left_margin, y_offset), "Buy", fill='#000000', font=rate_font)
+        # Текст слева (Покупка) - используем латинские символы для совместимости
+        left_text = "Buy"
+        draw.text((left_margin, y_offset), left_text, fill='#000000', font=rate_font)
         
         # Значение справа
-        buy_value = f"{buy_rate:.2f}₽"
+        buy_value = f"{buy_rate:.2f} RUB"
         buy_bbox = draw.textbbox((0, 0), buy_value, font=rate_font)
         buy_value_width = buy_bbox[2] - buy_bbox[0]
         draw.text((right_margin - buy_value_width, y_offset), buy_value, fill='#000000', font=rate_font)
@@ -150,17 +102,12 @@ class CurrencyImageGenerator:
         divider_y = y_offset + 50
         draw.line([(left_margin, divider_y), (right_margin, divider_y)], fill='#e0e0e0', width=1)
         
-        # Вторая строка данных (Продажа)
+        # Вторая строка данных (Продажа) - используем латинские символы для совместимости
         sell_y = divider_y + 15
-        sell_text = "Продажа"
-        try:
-            draw.text((left_margin, sell_y), sell_text, fill='#000000', font=rate_font)
-        except Exception as e:
-            logger.warning(f"Ошибка отрисовки текста '{sell_text}': {e}")
-            # Fallback: используем латинские символы
-            draw.text((left_margin, sell_y), "Sell", fill='#000000', font=rate_font)
+        sell_text = "Sell"
+        draw.text((left_margin, sell_y), sell_text, fill='#000000', font=rate_font)
         
-        sell_value = f"{sell_rate:.2f}₽"
+        sell_value = f"{sell_rate:.2f} RUB"
         sell_bbox = draw.textbbox((0, 0), sell_value, font=rate_font)
         sell_value_width = sell_bbox[2] - sell_bbox[0]
         draw.text((right_margin - sell_value_width, sell_y), sell_value, fill='#000000', font=rate_font)
@@ -184,23 +131,13 @@ class CurrencyImageGenerator:
             radius=15, fill='#ffffff'
         )
         
-        # Время обновления по центру
-        time_text = f"Обновлено: {time_str}"
-        try:
-            time_bbox = draw.textbbox((0, 0), time_text, font=rate_font)
-            time_width = time_bbox[2] - time_bbox[0]
-            time_x = time_card_x + (time_card_width - time_width) // 2
-            time_y = time_card_y + (time_card_height - (time_bbox[3] - time_bbox[1])) // 2
-            draw.text((time_x, time_y), time_text, fill='#000000', font=rate_font)
-        except Exception as e:
-            logger.warning(f"Ошибка отрисовки текста времени '{time_text}': {e}")
-            # Fallback: используем только время без русских слов
-            fallback_text = time_str
-            time_bbox = draw.textbbox((0, 0), fallback_text, font=rate_font)
-            time_width = time_bbox[2] - time_bbox[0]
-            time_x = time_card_x + (time_card_width - time_width) // 2
-            time_y = time_card_y + (time_card_height - (time_bbox[3] - time_bbox[1])) // 2
-            draw.text((time_x, time_y), fallback_text, fill='#000000', font=rate_font)
+        # Время обновления по центру - используем латинские символы для совместимости
+        time_text = f"Updated: {time_str}"
+        time_bbox = draw.textbbox((0, 0), time_text, font=rate_font)
+        time_width = time_bbox[2] - time_bbox[0]
+        time_x = time_card_x + (time_card_width - time_width) // 2
+        time_y = time_card_y + (time_card_height - (time_bbox[3] - time_bbox[1])) // 2
+        draw.text((time_x, time_y), time_text, fill='#000000', font=rate_font)
         
         # Сохраняем изображение
         filename = 'currency_rates.png'
