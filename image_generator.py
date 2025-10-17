@@ -73,33 +73,17 @@ class CurrencyImageGenerator:
         
         # Заголовок "USDT/RUB" по центру вверху
         # Попытка загрузить шрифт с поддержкой кириллицы
-        font_path = None
-        # Попробуем несколько распространенных путей для шрифтов с кириллицей
-        possible_font_paths = [
-            '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',  # Linux
-            '/System/Library/Fonts/Arial.ttf',  # macOS
-            '/Library/Fonts/Arial.ttf',  # macOS
-            'C:/Windows/Fonts/Arial.ttf',  # Windows
-            '/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf', # Linux
-            '/System/Library/Fonts/Supplemental/Arial Unicode MS.ttf', # macOS
-        ]
-
-        for path in possible_font_paths:
-            if os.path.exists(path):
-                font_path = path
-                break
-
-        if font_path:
-            try:
+        font_path = '/System/Library/Fonts/Supplemental/Arial Unicode.ttf'
+        
+        try:
+            if os.path.exists(font_path):
                 title_font = ImageFont.truetype(font_path, 24)
                 rate_font = ImageFont.truetype(font_path, 32)
                 logger.info(f"Используется шрифт: {font_path}")
-            except Exception as e:
-                logger.warning(f"Не удалось загрузить шрифт {font_path}: {e}. Используется шрифт по умолчанию.")
-                title_font = ImageFont.load_default(size=24)
-                rate_font = ImageFont.load_default(size=32)
-        else:
-            logger.warning("Не найден подходящий шрифт с поддержкой кириллицы. Используется шрифт по умолчанию.")
+            else:
+                raise FileNotFoundError(f"Шрифт не найден: {font_path}")
+        except Exception as e:
+            logger.warning(f"Не удалось загрузить шрифт {font_path}: {e}. Используется шрифт по умолчанию.")
             title_font = ImageFont.load_default(size=24)
             rate_font = ImageFont.load_default(size=32)
         
