@@ -6,11 +6,12 @@
 
 import logging
 import time
+import os
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 import pytz
 
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, InputMediaPhoto
 from telegram.ext import ContextTypes
 
 from bestchange_parser import BestChangeParser
@@ -226,12 +227,10 @@ class RateHandler:
                 sell_display = f"{avg_sell_rate:.2f}₽" if avg_sell_rate else "—"
                 
                 message = (
-                    "💱 USDT/RUB • Актуальные курсы\n"
-                    "━━━━━━━━━━━━━━━━━\n"
                     f"📈 Покупка: {buy_display}\n"
                     f"📉 Продажа: {sell_display}\n\n"
-                    f"⚖️ Средний курс: {rate_value:.2f}₽ за 1 USDT\n"
-                    "━━━━━━━━━━━━━━━━━\n"
+                    f"⚖️ Средний курс: {rate_value:.2f}₽\n"
+                    "━━━━━━━━━━━━━━━\n"
                     f"🕘 Обновлено: {get_moscow_time().strftime('%H:%M • %d.%m.%Y')}"
                 )
                 # Вернем кнопки под сообщением
@@ -243,7 +242,30 @@ class RateHandler:
                     [InlineKeyboardButton("🆘 Поддержка", url=bot_config.support_url)]
                 ]
                 reply_markup = InlineKeyboardMarkup(keyboard)
-                await query.edit_message_text(message, reply_markup=reply_markup)
+                
+                # Генерируем изображение с курсами
+                from image_generator import image_generator
+                image_path = image_generator.generate_currency_card(
+                    buy_rate=avg_buy_rate or 0,
+                    sell_rate=avg_sell_rate or 0, 
+                    avg_rate=rate_value
+                )
+                
+                if image_path and os.path.exists(image_path):
+                    # Отправляем изображение с подписью
+                    with open(image_path, 'rb') as photo:
+                        await query.edit_message_media(
+                            media=InputMediaPhoto(photo, caption=message),
+                            reply_markup=reply_markup
+                        )
+                    # Удаляем временный файл
+                    try:
+                        os.remove(image_path)
+                    except:
+                        pass
+                else:
+                    # Если не удалось создать изображение, отправляем только текст
+                    await query.edit_message_text(message, reply_markup=reply_markup)
                 # Логируем простое значение в БД
                 exchange_data = {'mid_plus_0_30': rate_value}
                 self.db.log_exchange_request(user.id, exchange_data)
