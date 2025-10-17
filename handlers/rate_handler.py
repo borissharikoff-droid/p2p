@@ -222,10 +222,15 @@ class RateHandler:
                     f"Калькуляция курса (BestChange T-Bank): avg_buy_top10={avg_buy_rate}, avg_sell_top10={avg_sell_rate}, mid={mid}, final(-1.5)={rate_value}"
                 )
                 # Формат ответа по требованию
+                buy_display = f"{avg_buy_rate:.2f}₽" if avg_buy_rate else "—"
+                sell_display = f"{avg_sell_rate:.2f}₽" if avg_sell_rate else "—"
+                
                 message = (
                     "💱 USDT/RUB • Актуальные курсы\n"
                     "━━━━━━━━━━━━━━━━━\n"
-                    f"💰 Средний курс: {rate_value:.2f}₽ за 1 USDT\n"
+                    f"📈 Покупка: {buy_display}\n"
+                    f"📉 Продажа: {sell_display}\n\n"
+                    f"⚖️ Средний курс: {rate_value:.2f}₽ за 1 USDT\n"
                     "━━━━━━━━━━━━━━━━━\n"
                     f"🕘 Обновлено: {get_moscow_time().strftime('%H:%M • %d.%m.%Y')}"
                 )
