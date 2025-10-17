@@ -219,7 +219,7 @@ class RateHandler:
                 rate_value = round(mid, 2)
                 # Подробное логирование для верификации результата
                 logger.info(
-                    f"Калькуляция курса (BestChange T-Bank): avg_buy_top10={avg_buy_rate}, avg_sell_top10={avg_sell_rate}, mid={mid}, final={rate_value}"
+                    f"Калькуляция курса (BestChange Cash RUB): avg_buy_top10={avg_buy_rate}, avg_sell_top10={avg_sell_rate}, mid={mid}, final={rate_value}"
                 )
                 # Формат ответа по требованию
                 buy_display = f"{avg_buy_rate:.2f}₽" if avg_buy_rate else "—"
@@ -315,7 +315,7 @@ class RateHandler:
                 top_exchangers = sell_data[:5]
                 
                 # Формируем сообщение
-                message = "💱 USDT TRC20/T-Bank RUB • Топ-5 обменников\n"
+                message = "💱 USDT TRC20/Наличные RUB • Топ-5 обменников\n"
                 message += "━━━━━━━━━━━━━━━━━━━\n"
                 
                 # Эмодзи для позиций

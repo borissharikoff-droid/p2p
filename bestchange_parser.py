@@ -18,13 +18,13 @@ class BestChangeParser:
     """Парсер для сайта BestChange"""
     
     def __init__(self):
-        self.base_url = "https://www.bestchange.com"
-        # URL для покупки USDT (T‑Bank RUB → USDT TRC20)
-        # Источник: https://www.bestchange.com/tinkoff-to-tether-trc20.html
-        self.buy_url = "https://www.bestchange.com/tinkoff-to-tether-trc20.html"
-        # URL для продажи USDT (USDT TRC20 → T‑Bank RUB)
-        # Источник: https://www.bestchange.com/tether-trc20-to-tinkoff.html
-        self.sell_url = "https://www.bestchange.com/tether-trc20-to-tinkoff.html"
+        self.base_url = "https://www.bestchange.ru"
+        # URL для покупки USDT (Наличные RUB → USDT TRC20)
+        # Источник: https://www.bestchange.ru/cash-ruble-to-tether-trc20-in-msk.html
+        self.buy_url = "https://www.bestchange.ru/cash-ruble-to-tether-trc20-in-msk.html"
+        # URL для продажи USDT (USDT TRC20 → Наличные RUB)
+        # Источник: https://www.bestchange.ru/tether-trc20-to-cash-ruble-in-msk.html
+        self.sell_url = "https://www.bestchange.ru/tether-trc20-to-cash-ruble-in-msk.html"
         self.session = requests.Session()
         
         # Заголовки для имитации браузера
