@@ -39,91 +39,92 @@ class CurrencyImageGenerator:
             return None
     
     def _generate_with_pillow(self, buy_rate: float, sell_rate: float, avg_rate: float) -> Optional[str]:
-        """Генерация через Pillow"""
+        """Генерация через Pillow - точная копия дизайна пользователя"""
         from PIL import Image, ImageDraw, ImageFont
         
         # Получаем московское время
         moscow_tz = pytz.timezone('Europe/Moscow')
         moscow_time = datetime.now(moscow_tz)
-        time_str = moscow_time.strftime('%H:%M • %d.%m.%Y')
+        time_str = moscow_time.strftime('%H:%M %d.%m.%Y')
         
-        # Создаем изображение с синим фоном
-        img = Image.new('RGB', (self.width, self.height), color='#3b82f6')
+        # Создаем изображение с ярко-синим фоном как в примере
+        img = Image.new('RGB', (self.width, self.height), color='#0066ff')  # Ярко-синий фон
         draw = ImageDraw.Draw(img)
         
-        # Добавляем DX паттерн
-        self._add_dx_pattern(draw)
-        
-        # Используем Helvetica который точно работает
-        try:
-            rate_font = ImageFont.truetype('/System/Library/Fonts/Helvetica.ttc', 50)
-            time_font = ImageFont.truetype('/System/Library/Fonts/Helvetica.ttc', 18)
-        except:
-            rate_font = ImageFont.load_default()
-            time_font = ImageFont.load_default()
-        
-        # Основная карточка
-        card_width = 1200
-        card_height = 300
+        # Основная карточка (большая, белая)
+        card_width = 1000
+        card_height = 200
         card_x = (self.width - card_width) // 2
-        card_y = (self.height - card_height) // 2 - 50
+        card_y = (self.height - card_height) // 2 - 80  # Смещена вверх
         
-        # Тень карточки
+        # Тень основной карточки
         shadow_offset = 8
         draw.rounded_rectangle(
             [card_x + shadow_offset, card_y + shadow_offset, 
              card_x + card_width + shadow_offset, card_y + card_height + shadow_offset],
-            radius=25, fill='#00000030'
+            radius=20, fill='#00000040'  # Более заметная тень
         )
         
-        # Сама карточка - белая
+        # Сама основная карточка - белая
         draw.rounded_rectangle(
             [card_x, card_y, card_x + card_width, card_y + card_height],
-            radius=25, fill='#ffffff'
+            radius=20, fill='#ffffff'
         )
         
-        # Курсы
-        y_offset = card_y + 80
+        # Заголовок "USDT/RUB" по центру вверху
+        try:
+            title_font = ImageFont.truetype('/System/Library/Fonts/Helvetica.ttc', 24)
+            rate_font = ImageFont.truetype('/System/Library/Fonts/Helvetica.ttc', 32)
+        except:
+            title_font = ImageFont.load_default()
+            rate_font = ImageFont.load_default()
         
-        # Покупка
-        buy_text = "Покупка"
+        title_text = "USDT/RUB"
+        title_bbox = draw.textbbox((0, 0), title_text, font=title_font)
+        title_width = title_bbox[2] - title_bbox[0]
+        title_x = card_x + (card_width - title_width) // 2
+        title_y = card_y + 20
+        draw.text((title_x, title_y), title_text, fill='#000000', font=title_font)
+        
+        # Первая строка данных (Покупка)
+        y_offset = card_y + 70
+        left_margin = card_x + 40
+        right_margin = card_x + card_width - 40
+        
+        # Текст слева (########)
+        left_text = "########"
+        draw.text((left_margin, y_offset), left_text, fill='#000000', font=rate_font)
+        
+        # Значение справа
         buy_value = f"{buy_rate:.2f}₽"
-        
-        # Продажа  
-        sell_text = "Продажа"
-        sell_value = f"{sell_rate:.2f}₽"
-        
-        left_margin = card_x + 60
-        right_margin = card_x + card_width - 60
-        
-        # Рисуем покупку
-        draw.text((left_margin, y_offset), buy_text, fill='#000000', font=rate_font)
         buy_bbox = draw.textbbox((0, 0), buy_value, font=rate_font)
         buy_value_width = buy_bbox[2] - buy_bbox[0]
         draw.text((right_margin - buy_value_width, y_offset), buy_value, fill='#000000', font=rate_font)
         
-        # Разделитель между курсами
-        divider_y = y_offset + 80
-        draw.line([(left_margin, divider_y), (right_margin, divider_y)], fill='#e5e7eb', width=1)
+        # Разделительная линия
+        divider_y = y_offset + 50
+        draw.line([(left_margin, divider_y), (right_margin, divider_y)], fill='#e0e0e0', width=1)
         
-        # Рисуем продажу
-        sell_y = divider_y + 20
-        draw.text((left_margin, sell_y), sell_text, fill='#000000', font=rate_font)
+        # Вторая строка данных (Продажа)
+        sell_y = divider_y + 15
+        draw.text((left_margin, sell_y), left_text, fill='#000000', font=rate_font)
+        
+        sell_value = f"{sell_rate:.2f}₽"
         sell_bbox = draw.textbbox((0, 0), sell_value, font=rate_font)
         sell_value_width = sell_bbox[2] - sell_bbox[0]
         draw.text((right_margin - sell_value_width, sell_y), sell_value, fill='#000000', font=rate_font)
         
-        # Карточка времени
-        time_card_width = 350
+        # Нижняя карточка (время)
+        time_card_width = 400
         time_card_height = 50
-        time_card_x = card_x + card_width - time_card_width - 20
-        time_card_y = card_y + card_height + 20
+        time_card_x = (self.width - time_card_width) // 2
+        time_card_y = card_y + card_height + 40  # Отступ от основной карточки
         
         # Тень карточки времени
         draw.rounded_rectangle(
             [time_card_x + 5, time_card_y + 5, 
              time_card_x + time_card_width + 5, time_card_y + time_card_height + 5],
-            radius=15, fill='#00000020'
+            radius=15, fill='#00000040'
         )
         
         # Карточка времени
@@ -132,52 +133,19 @@ class CurrencyImageGenerator:
             radius=15, fill='#ffffff'
         )
         
-        # Время обновления
-        time_text = f"Обновлено: {time_str}"
-        time_bbox = draw.textbbox((0, 0), time_text, font=time_font)
+        # Время обновления по центру
+        time_text = f"######## {time_str}"
+        time_bbox = draw.textbbox((0, 0), time_text, font=rate_font)
         time_width = time_bbox[2] - time_bbox[0]
         time_x = time_card_x + (time_card_width - time_width) // 2
         time_y = time_card_y + (time_card_height - (time_bbox[3] - time_bbox[1])) // 2
-        draw.text((time_x, time_y), time_text, fill='#000000', font=time_font)
-        
-        # Стрелка вниз в правом верхнем углу
-        arrow_x = self.width - 50
-        arrow_y = 30
-        self._draw_arrow_down(draw, arrow_x, arrow_y)
+        draw.text((time_x, time_y), time_text, fill='#000000', font=rate_font)
         
         # Сохраняем изображение
         filename = 'currency_rates.png'
         img.save(filename)
         return filename
     
-    def _add_dx_pattern(self, draw):
-        """Добавляет DX паттерн"""
-        pattern_size = 80
-        for x in range(0, self.width, pattern_size):
-            for y in range(0, self.height, pattern_size):
-                center_x = x + pattern_size // 2
-                center_y = y + pattern_size // 2
-                
-                # D
-                draw.line([(center_x - 15, center_y - 15), (center_x - 15, center_y + 15)], fill='#3b82f640', width=3)
-                draw.line([(center_x - 15, center_y - 15), (center_x - 5, center_y - 15)], fill='#3b82f640', width=3)
-                draw.line([(center_x - 15, center_y + 15), (center_x - 5, center_y + 15)], fill='#3b82f640', width=3)
-                draw.line([(center_x - 5, center_y - 15), (center_x - 5, center_y)], fill='#3b82f640', width=3)
-                draw.line([(center_x - 5, center_y + 15), (center_x - 5, center_y)], fill='#3b82f640', width=3)
-                
-                # X
-                draw.line([(center_x + 5, center_y - 15), (center_x + 15, center_y + 15)], fill='#3b82f640', width=3)
-                draw.line([(center_x + 15, center_y - 15), (center_x + 5, center_y + 15)], fill='#3b82f640', width=3)
-    
-    def _draw_arrow_down(self, draw, x, y):
-        """Рисует стрелку вниз"""
-        arrow_size = 20
-        points = [
-            (x, y),
-            (x - arrow_size//2, y + arrow_size),
-            (x + arrow_size//2, y + arrow_size)
-        ]
-        draw.polygon(points, fill='#ffffff')
 
 
 # Создаем глобальный экземпляр
