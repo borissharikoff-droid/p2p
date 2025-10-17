@@ -73,8 +73,31 @@ class CurrencyImageGenerator:
         
         # Заголовок "USDT/RUB" по центру вверху
         try:
-            title_font = ImageFont.truetype('/System/Library/Fonts/Helvetica.ttc', 24)
-            rate_font = ImageFont.truetype('/System/Library/Fonts/Helvetica.ttc', 32)
+            # Пробуем разные шрифты, поддерживающие кириллицу
+            font_paths = [
+                '/System/Library/Fonts/Arial.ttf',
+                '/System/Library/Fonts/Helvetica.ttc',
+                '/System/Library/Fonts/Times.ttc',
+                '/System/Library/Fonts/Courier.ttc',
+                '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
+                '/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf'
+            ]
+            
+            title_font = None
+            rate_font = None
+            
+            for font_path in font_paths:
+                try:
+                    title_font = ImageFont.truetype(font_path, 24)
+                    rate_font = ImageFont.truetype(font_path, 32)
+                    break
+                except:
+                    continue
+            
+            if title_font is None:
+                title_font = ImageFont.load_default()
+                rate_font = ImageFont.load_default()
+                
         except:
             title_font = ImageFont.load_default()
             rate_font = ImageFont.load_default()
@@ -91,8 +114,8 @@ class CurrencyImageGenerator:
         left_margin = card_x + 40
         right_margin = card_x + card_width - 40
         
-        # Текст слева (########)
-        left_text = "########"
+        # Текст слева (Покупка)
+        left_text = "Покупка"
         draw.text((left_margin, y_offset), left_text, fill='#000000', font=rate_font)
         
         # Значение справа
@@ -107,7 +130,8 @@ class CurrencyImageGenerator:
         
         # Вторая строка данных (Продажа)
         sell_y = divider_y + 15
-        draw.text((left_margin, sell_y), left_text, fill='#000000', font=rate_font)
+        sell_text = "Продажа"
+        draw.text((left_margin, sell_y), sell_text, fill='#000000', font=rate_font)
         
         sell_value = f"{sell_rate:.2f}₽"
         sell_bbox = draw.textbbox((0, 0), sell_value, font=rate_font)
@@ -134,7 +158,7 @@ class CurrencyImageGenerator:
         )
         
         # Время обновления по центру
-        time_text = f"######## {time_str}"
+        time_text = f"Обновлено: {time_str}"
         time_bbox = draw.textbbox((0, 0), time_text, font=rate_font)
         time_width = time_bbox[2] - time_bbox[0]
         time_x = time_card_x + (time_card_width - time_width) // 2
