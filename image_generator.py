@@ -72,9 +72,36 @@ class CurrencyImageGenerator:
         )
         
         # Заголовок "USDT/RUB" по центру вверху
-        # Используем простой подход - латинские символы для совместимости
-        title_font = ImageFont.load_default(size=24)
-        rate_font = ImageFont.load_default(size=32)
+        # Попытка загрузить шрифт с поддержкой кириллицы
+        font_path = None
+        # Попробуем несколько распространенных путей для шрифтов с кириллицей
+        possible_font_paths = [
+            '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',  # Linux
+            '/System/Library/Fonts/Arial.ttf',  # macOS
+            '/Library/Fonts/Arial.ttf',  # macOS
+            'C:/Windows/Fonts/Arial.ttf',  # Windows
+            '/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf', # Linux
+            '/System/Library/Fonts/Supplemental/Arial Unicode MS.ttf', # macOS
+        ]
+
+        for path in possible_font_paths:
+            if os.path.exists(path):
+                font_path = path
+                break
+
+        if font_path:
+            try:
+                title_font = ImageFont.truetype(font_path, 24)
+                rate_font = ImageFont.truetype(font_path, 32)
+                logger.info(f"Используется шрифт: {font_path}")
+            except Exception as e:
+                logger.warning(f"Не удалось загрузить шрифт {font_path}: {e}. Используется шрифт по умолчанию.")
+                title_font = ImageFont.load_default(size=24)
+                rate_font = ImageFont.load_default(size=32)
+        else:
+            logger.warning("Не найден подходящий шрифт с поддержкой кириллицы. Используется шрифт по умолчанию.")
+            title_font = ImageFont.load_default(size=24)
+            rate_font = ImageFont.load_default(size=32)
         
         title_text = "USDT/RUB"
         title_bbox = draw.textbbox((0, 0), title_text, font=title_font)
@@ -88,12 +115,12 @@ class CurrencyImageGenerator:
         left_margin = card_x + 40
         right_margin = card_x + card_width - 40
         
-        # Текст слева (Покупка) - используем латинские символы для совместимости
-        left_text = "Buy"
+        # Текст слева (Покупка)
+        left_text = "Покупка"
         draw.text((left_margin, y_offset), left_text, fill='#000000', font=rate_font)
         
         # Значение справа
-        buy_value = f"{buy_rate:.2f} RUB"
+        buy_value = f"{buy_rate:.2f}₽"
         buy_bbox = draw.textbbox((0, 0), buy_value, font=rate_font)
         buy_value_width = buy_bbox[2] - buy_bbox[0]
         draw.text((right_margin - buy_value_width, y_offset), buy_value, fill='#000000', font=rate_font)
@@ -102,12 +129,12 @@ class CurrencyImageGenerator:
         divider_y = y_offset + 50
         draw.line([(left_margin, divider_y), (right_margin, divider_y)], fill='#e0e0e0', width=1)
         
-        # Вторая строка данных (Продажа) - используем латинские символы для совместимости
+        # Вторая строка данных (Продажа)
         sell_y = divider_y + 15
-        sell_text = "Sell"
+        sell_text = "Продажа"
         draw.text((left_margin, sell_y), sell_text, fill='#000000', font=rate_font)
         
-        sell_value = f"{sell_rate:.2f} RUB"
+        sell_value = f"{sell_rate:.2f}₽"
         sell_bbox = draw.textbbox((0, 0), sell_value, font=rate_font)
         sell_value_width = sell_bbox[2] - sell_bbox[0]
         draw.text((right_margin - sell_value_width, sell_y), sell_value, fill='#000000', font=rate_font)
@@ -131,8 +158,8 @@ class CurrencyImageGenerator:
             radius=15, fill='#ffffff'
         )
         
-        # Время обновления по центру - используем латинские символы для совместимости
-        time_text = f"Updated: {time_str}"
+        # Время обновления по центру
+        time_text = f"Обновлено: {time_str}"
         time_bbox = draw.textbbox((0, 0), time_text, font=rate_font)
         time_width = time_bbox[2] - time_bbox[0]
         time_x = time_card_x + (time_card_width - time_width) // 2
