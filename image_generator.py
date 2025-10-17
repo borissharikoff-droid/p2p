@@ -45,15 +45,27 @@ class CurrencyImageGenerator:
             # Добавляем паттерн с символами рубля
             self._add_ruble_pattern(draw)
             
-            # Создаем белую карточку
+            # Создаем основную карточку с курсами
             card_x = (self.width - self.card_width) // 2
-            card_y = (self.height - self.card_height) // 2
+            card_y = (self.height - self.card_height) // 2 - 50
             
-            # Рисуем карточку с тенью
+            # Рисуем основную карточку с тенью
             self._draw_card_with_shadow(draw, card_x, card_y)
             
-            # Добавляем содержимое карточки в стиле обменника
-            self._add_exchange_interface(draw, card_x, card_y, avg_rate)
+            # Добавляем курсы покупки и продажи
+            self._add_exchange_interface(draw, card_x, card_y, buy_rate, sell_rate)
+            
+            # Создаем карточку с временем обновления
+            time_card_width = 400
+            time_card_height = 60
+            time_card_x = (self.width - time_card_width) // 2
+            time_card_y = card_y + self.card_height + 30
+            
+            # Рисуем карточку времени с тенью
+            self._draw_time_card(draw, time_card_x, time_card_y, time_card_width, time_card_height)
+            
+            # Добавляем время обновления
+            self._add_update_time(draw, time_card_x, time_card_y, time_card_width, time_card_height)
             
             # Сохраняем изображение
             image_path = "currency_rates.png"
@@ -66,26 +78,16 @@ class CurrencyImageGenerator:
             return None
     
     def _create_gradient_background(self, draw: ImageDraw.Draw):
-        """Создает градиентный синий фон"""
+        """Создает синий фон с паттерном DX"""
         try:
-            # Создаем градиент от темно-синего сверху к более светлому снизу
-            for y in range(self.height):
-                # Вычисляем коэффициент для градиента
-                ratio = y / self.height
-                
-                # Градиент от #1e3a8a (темно-синий) к #3b82f6 (светло-синий)
-                r = int(30 + (59 - 30) * ratio)
-                g = int(58 + (130 - 58) * ratio)
-                b = int(138 + (246 - 138) * ratio)
-                
-                color = (r, g, b)
-                draw.line([(0, y), (self.width, y)], fill=color)
+            # Создаем сплошной синий фон
+            draw.rectangle([0, 0, self.width, self.height], fill='#3b82f6')
                 
         except Exception as e:
-            logger.warning(f"Не удалось создать градиент: {e}")
+            logger.warning(f"Не удалось создать фон: {e}")
     
     def _add_ruble_pattern(self, draw: ImageDraw.Draw):
-        """Добавляет паттерн с символами рубля на фон"""
+        """Добавляет паттерн DX на фон"""
         try:
             # Пытаемся загрузить шрифт с поддержкой Unicode
             try:
@@ -99,7 +101,7 @@ class CurrencyImageGenerator:
                 font = None
                 for font_path in font_paths:
                     try:
-                        font = ImageFont.truetype(font_path, 40)
+                        font = ImageFont.truetype(font_path, 30)
                         break
                     except:
                         continue
@@ -110,10 +112,10 @@ class CurrencyImageGenerator:
             except:
                 font = ImageFont.load_default()
             
-            # Добавляем полупрозрачные символы рубля
-            for x in range(0, self.width, 60):
-                for y in range(0, self.height, 60):
-                    draw.text((x, y), "₽", fill=(255, 255, 255, 30), font=font)
+            # Добавляем полупрозрачный паттерн DX
+            for x in range(0, self.width, 80):
+                for y in range(0, self.height, 80):
+                    draw.text((x, y), "DX", fill=(59, 130, 246, 50), font=font)
                     
         except Exception as e:
             logger.warning(f"Не удалось добавить паттерн: {e}")
@@ -136,8 +138,8 @@ class CurrencyImageGenerator:
             fill='white'
         )
     
-    def _add_exchange_interface(self, draw: ImageDraw.Draw, x: int, y: int, avg_rate: float):
-        """Добавляет интерфейс обменника на карточку точно как на примере"""
+    def _add_exchange_interface(self, draw: ImageDraw.Draw, x: int, y: int, buy_rate: float, sell_rate: float):
+        """Добавляет интерфейс с курсами покупки и продажи"""
         try:
             # Пытаемся загрузить шрифты с поддержкой Unicode
             font_paths = [
@@ -151,112 +153,119 @@ class CurrencyImageGenerator:
             ]
             
             # Загружаем шрифты разных размеров
-            currency_font = None
-            amount_font = None
+            main_font = None
             small_font = None
             
             for font_path in font_paths:
                 try:
-                    if currency_font is None:
-                        currency_font = ImageFont.truetype(font_path, 60)
-                    if amount_font is None:
-                        amount_font = ImageFont.truetype(font_path, 55)
+                    if main_font is None:
+                        main_font = ImageFont.truetype(font_path, 50)
                     if small_font is None:
-                        small_font = ImageFont.truetype(font_path, 30)
+                        small_font = ImageFont.truetype(font_path, 20)
                     break
                 except:
                     continue
             
             # Если не удалось загрузить шрифты, используем стандартные
-            if currency_font is None:
-                currency_font = ImageFont.load_default()
-            if amount_font is None:
-                amount_font = ImageFont.load_default()
+            if main_font is None:
+                main_font = ImageFont.load_default()
             if small_font is None:
                 small_font = ImageFont.load_default()
             
-            # Рассчитываем суммы для отображения (как на примере)
-            rub_amount = 20000  # 20,000 рублей
-            usdt_amount = rub_amount / avg_rate  # Конвертируем в USDT
+            # Верхняя строка - Покупка
+            buy_y = y + 80
             
-            # Верхняя строка - RUB
-            rub_y = y + 80
+            # Текст "Покупка" - жирный черный
+            draw.text((x + 60, buy_y), "Покупка", fill='black', font=main_font)
             
-            # Иконка рубля (темно-серый круг)
-            icon_size = 70
-            icon_x = x + 60
-            icon_y = rub_y - 10
-            draw.ellipse([icon_x, icon_y, icon_x + icon_size, icon_y + icon_size], fill='#4b5563')
-            
-            # Символ рубля в иконке (белый)
-            rub_symbol_bbox = draw.textbbox((0, 0), "₽", font=currency_font)
-            rub_symbol_width = rub_symbol_bbox[2] - rub_symbol_bbox[0]
-            rub_symbol_height = rub_symbol_bbox[3] - rub_symbol_bbox[1]
-            draw.text((icon_x + (icon_size - rub_symbol_width) // 2, 
-                      icon_y + (icon_size - rub_symbol_height) // 2), 
-                     "₽", fill='white', font=currency_font)
-            
-            # Текст "RUB" - жирный черный
-            draw.text((icon_x + icon_size + 25, rub_y), "RUB", fill='black', font=currency_font)
-            
-            # Сумма в рублях - выровнена по правому краю
-            rub_text = f"{rub_amount:,}".replace(",", " ")
-            amount_bbox = draw.textbbox((0, 0), rub_text, font=amount_font)
-            amount_width = amount_bbox[2] - amount_bbox[0]
-            amount_x = x + self.card_width - amount_width - 60
-            draw.text((amount_x, rub_y), rub_text, fill='black', font=amount_font)
+            # Курс покупки - выровнен по правому краю
+            buy_text = f"{buy_rate:.2f}₽"
+            buy_bbox = draw.textbbox((0, 0), buy_text, font=main_font)
+            buy_width = buy_bbox[2] - buy_bbox[0]
+            buy_x = x + self.card_width - buy_width - 60
+            draw.text((buy_x, buy_y), buy_text, fill='black', font=main_font)
             
             # Разделительная линия - тонкая серая
-            line_y = y + 180
+            line_y = y + 150
             draw.line([(x + 50, line_y), (x + self.card_width - 50, line_y)], fill='#e5e7eb', width=1)
             
-            # Иконка обмена в центре линии - светлая синяя
-            exchange_icon_size = 40
-            exchange_icon_x = x + self.card_width // 2 - exchange_icon_size // 2
-            exchange_icon_y = line_y - exchange_icon_size // 2
-            draw.ellipse([exchange_icon_x, exchange_icon_y, 
-                         exchange_icon_x + exchange_icon_size, exchange_icon_y + exchange_icon_size], 
-                        fill='#60a5fa')  # Светло-синий как на примере
+            # Нижняя строка - Продажа
+            sell_y = y + 200
             
-            # Стрелки в иконке обмена (диагональные как на примере)
-            arrow_bbox = draw.textbbox((0, 0), "↗", font=small_font)
-            arrow_width = arrow_bbox[2] - arrow_bbox[0]
-            arrow_height = arrow_bbox[3] - arrow_bbox[1]
-            draw.text((exchange_icon_x + (exchange_icon_size - arrow_width) // 2 - 5,
-                      exchange_icon_y + (exchange_icon_size - arrow_height) // 2 - 3),
-                     "↗", fill='white', font=small_font)
-            draw.text((exchange_icon_x + (exchange_icon_size - arrow_width) // 2 + 5,
-                      exchange_icon_y + (exchange_icon_size - arrow_height) // 2 + 3),
-                     "↙", fill='white', font=small_font)
+            # Текст "Продажа" - жирный черный
+            draw.text((x + 60, sell_y), "Продажа", fill='black', font=main_font)
             
-            # Нижняя строка - USDT
-            usdt_y = y + 280
-            
-            # Иконка доллара (темно-серый круг)
-            usdt_icon_x = x + 60
-            usdt_icon_y = usdt_y - 10
-            draw.ellipse([usdt_icon_x, usdt_icon_y, usdt_icon_x + icon_size, usdt_icon_y + icon_size], fill='#4b5563')
-            
-            # Символ доллара в иконке (белый)
-            usd_symbol_bbox = draw.textbbox((0, 0), "$", font=currency_font)
-            usd_symbol_width = usd_symbol_bbox[2] - usd_symbol_bbox[0]
-            usd_symbol_height = usd_symbol_bbox[3] - usd_symbol_bbox[1]
-            draw.text((usdt_icon_x + (icon_size - usd_symbol_width) // 2,
-                      usdt_icon_y + (icon_size - usd_symbol_height) // 2),
-                     "$", fill='white', font=currency_font)
-            
-            # Текст "USDT" - жирный черный
-            draw.text((usdt_icon_x + icon_size + 25, usdt_y), "USDT", fill='black', font=currency_font)
-            
-            # Сумма в USDT - выровнена по правому краю
-            usdt_text = f"{usdt_amount:.2f}"
-            usdt_amount_bbox = draw.textbbox((0, 0), usdt_text, font=amount_font)
-            usdt_amount_width = usdt_amount_bbox[2] - usdt_amount_bbox[0]
-            usdt_amount_x = x + self.card_width - usdt_amount_width - 60
-            draw.text((usdt_amount_x, usdt_y), usdt_text, fill='black', font=amount_font)
+            # Курс продажи - выровнен по правому краю
+            sell_text = f"{sell_rate:.2f}₽"
+            sell_bbox = draw.textbbox((0, 0), sell_text, font=main_font)
+            sell_width = sell_bbox[2] - sell_bbox[0]
+            sell_x = x + self.card_width - sell_width - 60
+            draw.text((sell_x, sell_y), sell_text, fill='black', font=main_font)
             
         except Exception as e:
-            logger.error(f"Ошибка добавления интерфейса обменника: {e}")
+            logger.error(f"Ошибка добавления интерфейса курсов: {e}")
+    
+    def _draw_time_card(self, draw: ImageDraw.Draw, x: int, y: int, width: int, height: int):
+        """Рисует карточку с временем обновления"""
+        # Тень
+        shadow_offset = 4
+        draw.rounded_rectangle(
+            [x + shadow_offset, y + shadow_offset, 
+             x + width + shadow_offset, y + height + shadow_offset],
+            radius=15,
+            fill=(0, 0, 0, 30)
+        )
+        
+        # Основная карточка
+        draw.rounded_rectangle(
+            [x, y, x + width, y + height],
+            radius=15,
+            fill='white'
+        )
+    
+    def _add_update_time(self, draw: ImageDraw.Draw, x: int, y: int, width: int, height: int):
+        """Добавляет время обновления на карточку"""
+        try:
+            from datetime import datetime
+            import pytz
+            
+            # Получаем московское время
+            moscow_tz = pytz.timezone('Europe/Moscow')
+            moscow_time = datetime.now(moscow_tz)
+            
+            # Пытаемся загрузить шрифт
+            font_paths = [
+                "/System/Library/Fonts/Arial.ttf",  # macOS
+                "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",  # Linux
+                "C:/Windows/Fonts/arial.ttf",  # Windows
+                "arial.ttf"
+            ]
+            
+            font = None
+            for font_path in font_paths:
+                try:
+                    font = ImageFont.truetype(font_path, 18)
+                    break
+                except:
+                    continue
+            
+            if font is None:
+                font = ImageFont.load_default()
+            
+            # Форматируем время
+            time_text = f"Обновлено: {moscow_time.strftime('%H:%M • %d.%m.%Y')}"
+            
+            # Центрируем текст
+            text_bbox = draw.textbbox((0, 0), time_text, font=font)
+            text_width = text_bbox[2] - text_bbox[0]
+            text_height = text_bbox[3] - text_bbox[1]
+            text_x = x + (width - text_width) // 2
+            text_y = y + (height - text_height) // 2
+            
+            draw.text((text_x, text_y), time_text, fill='black', font=font)
+            
+        except Exception as e:
+            logger.error(f"Ошибка добавления времени обновления: {e}")
 
 
 # Создаем глобальный экземпляр
