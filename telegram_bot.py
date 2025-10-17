@@ -443,6 +443,36 @@ class TrustedCurrencyRateBot:
             logger.error(f"Ошибка в db_status_command: {e}")
             await update.message.reply_text(f"❌ Ошибка получения статуса БД: {e}")
     
+    async def clear_cache_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Обработчик команды /clear_cache - очистка кэша"""
+        user = update.effective_user
+        logger.info(f"🔍 Получена команда /clear_cache от пользователя {user.id}")
+        
+        try:
+            # Очищаем кэш курсов
+            from cache_manager import CacheManager
+            cache_manager = CacheManager()
+            cache_cleared = cache_manager.clear_cache()
+            
+            # Очищаем кэш криптовалют
+            from crypto_api import crypto_api
+            crypto_api.clear_cache()
+            
+            if cache_cleared:
+                message = "✅ <b>Кэш очищен</b>\n\n"
+                message += "🔄 Кэш курсов: очищен\n"
+                message += "🪙 Кэш криптовалют: очищен\n\n"
+                message += "Теперь бот будет получать свежие данные с новой логикой расчета."
+                
+                await update.message.reply_text(message, parse_mode='HTML')
+                logger.info("✅ Кэш успешно очищен")
+            else:
+                await update.message.reply_text("❌ Ошибка очистки кэша")
+                
+        except Exception as e:
+            logger.error(f"Ошибка в clear_cache_command: {e}")
+            await update.message.reply_text(f"❌ Ошибка очистки кэша: {e}")
+    
     async def handle_back_to_menu(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Обработчик кнопки 'Назад в меню'"""
         query = update.callback_query
@@ -811,6 +841,7 @@ def main() -> None:
     application.add_handler(CommandHandler("test_notification", bot.test_notification_command))
     application.add_handler(CommandHandler("debug_tracking", bot.debug_tracking_command))
     application.add_handler(CommandHandler("db_status", bot.db_status_command))
+    application.add_handler(CommandHandler("clear_cache", bot.clear_cache_command))
     
     # Добавляем обработчик callback'ов для кнопок
     application.add_handler(CallbackQueryHandler(bot.button_callback))
