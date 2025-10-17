@@ -9,3 +9,4 @@ aiohttp==3.9.1
 pytz==2023.3
 psycopg2-binary==2.9.9
 Pillow==10.1.0
+html2image==2.0.4.3

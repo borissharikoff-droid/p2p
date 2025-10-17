@@ -1,26 +1,24 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Генератор изображений с курсами валют
+Генератор изображений с курсами валют используя HTML/CSS
 """
 
 import os
-from PIL import Image, ImageDraw, ImageFont
-from typing import Optional, Tuple
+from datetime import datetime
+import pytz
+from typing import Optional
 import logging
 
 logger = logging.getLogger(__name__)
 
 
 class CurrencyImageGenerator:
-    """Генератор изображений с курсами валют"""
+    """Генератор изображений с курсами валют используя HTML/CSS"""
     
     def __init__(self):
         self.width = 1600
         self.height = 1000
-        self.card_width = 1200
-        self.card_height = 400
-        self.card_margin = 200
         
     def generate_currency_card(self, buy_rate: float, sell_rate: float, avg_rate: float) -> Optional[str]:
         """
@@ -35,237 +33,183 @@ class CurrencyImageGenerator:
             Путь к созданному изображению или None при ошибке
         """
         try:
-            # Создаем изображение с градиентным фоном
-            image = Image.new('RGB', (self.width, self.height), color='#1e3a8a')
-            draw = ImageDraw.Draw(image)
+            # Получаем московское время
+            moscow_tz = pytz.timezone('Europe/Moscow')
+            moscow_time = datetime.now(moscow_tz)
+            time_str = moscow_time.strftime('%H:%M • %d.%m.%Y')
             
-            # Создаем градиентный фон
-            self._create_gradient_background(draw)
+            # Создаем HTML
+            html_content = self._create_html(buy_rate, sell_rate, time_str)
             
-            # Добавляем паттерн с символами рубля
-            self._add_ruble_pattern(draw)
+            # Создаем CSS
+            css_content = self._create_css()
             
-            # Создаем основную карточку с курсами
-            card_x = (self.width - self.card_width) // 2
-            card_y = (self.height - self.card_height) // 2 - 50
+            # Генерируем изображение
+            from html2image import Html2Image
+            hti = Html2Image()
             
-            # Рисуем основную карточку с тенью
-            self._draw_card_with_shadow(draw, card_x, card_y)
+            # Устанавливаем размер
+            hti.screenshot(
+                html_str=html_content,
+                css_str=css_content,
+                save_as='currency_rates.png',
+                size=(self.width, self.height)
+            )
             
-            # Добавляем курсы покупки и продажи
-            self._add_exchange_interface(draw, card_x, card_y, buy_rate, sell_rate)
-            
-            # Создаем карточку с временем обновления
-            time_card_width = 400
-            time_card_height = 60
-            time_card_x = (self.width - time_card_width) // 2
-            time_card_y = card_y + self.card_height + 30
-            
-            # Рисуем карточку времени с тенью
-            self._draw_time_card(draw, time_card_x, time_card_y, time_card_width, time_card_height)
-            
-            # Добавляем время обновления
-            self._add_update_time(draw, time_card_x, time_card_y, time_card_width, time_card_height)
-            
-            # Сохраняем изображение
-            image_path = "currency_rates.png"
-            image.save(image_path, "PNG")
-            
-            return image_path
+            return 'currency_rates.png'
             
         except Exception as e:
             logger.error(f"Ошибка генерации изображения: {e}")
             return None
     
-    def _create_gradient_background(self, draw: ImageDraw.Draw):
-        """Создает синий фон с паттерном DX"""
-        try:
-            # Создаем сплошной синий фон
-            draw.rectangle([0, 0, self.width, self.height], fill='#3b82f6')
+    def _create_html(self, buy_rate: float, sell_rate: float, time_str: str) -> str:
+        """Создает HTML для изображения"""
+        return f"""
+        <!DOCTYPE html>
+        <html lang="ru">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Курсы валют</title>
+        </head>
+        <body>
+            <div class="container">
+                <div class="main-card">
+                    <div class="rate-row">
+                        <span class="rate-label">Покупка</span>
+                        <span class="rate-value">{buy_rate:.2f}₽</span>
+                    </div>
+                    <div class="divider"></div>
+                    <div class="rate-row">
+                        <span class="rate-label">Продажа</span>
+                        <span class="rate-value">{sell_rate:.2f}₽</span>
+                    </div>
+                </div>
                 
-        except Exception as e:
-            logger.warning(f"Не удалось создать фон: {e}")
+                <div class="time-card">
+                    <span class="time-text">Обновлено: {time_str}</span>
+                </div>
+            </div>
+        </body>
+        </html>
+        """
     
-    def _add_ruble_pattern(self, draw: ImageDraw.Draw):
-        """Добавляет паттерн DX на фон"""
-        try:
-            # Пытаемся загрузить шрифт с поддержкой Unicode
-            try:
-                # Пробуем разные шрифты для поддержки русского текста
-                font_paths = [
-                    "/System/Library/Fonts/Arial.ttf",  # macOS
-                    "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",  # Linux
-                    "C:/Windows/Fonts/arial.ttf",  # Windows
-                    "arial.ttf"
-                ]
-                font = None
-                for font_path in font_paths:
-                    try:
-                        font = ImageFont.truetype(font_path, 30)
-                        break
-                    except:
-                        continue
-                
-                if font is None:
-                    font = ImageFont.load_default()
-                    
-            except:
-                font = ImageFont.load_default()
-            
-            # Добавляем полупрозрачный паттерн DX
-            for x in range(0, self.width, 80):
-                for y in range(0, self.height, 80):
-                    draw.text((x, y), "DX", fill=(59, 130, 246, 50), font=font)
-                    
-        except Exception as e:
-            logger.warning(f"Не удалось добавить паттерн: {e}")
-    
-    def _draw_card_with_shadow(self, draw: ImageDraw.Draw, x: int, y: int):
-        """Рисует карточку с тенью"""
-        # Тень - более заметная
-        shadow_offset = 8
-        draw.rounded_rectangle(
-            [x + shadow_offset, y + shadow_offset, 
-             x + self.card_width + shadow_offset, y + self.card_height + shadow_offset],
-            radius=25,
-            fill=(0, 0, 0, 50)
-        )
+    def _create_css(self) -> str:
+        """Создает CSS для изображения"""
+        return """
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
         
-        # Основная карточка - более округлая
-        draw.rounded_rectangle(
-            [x, y, x + self.card_width, y + self.card_height],
-            radius=25,
-            fill='white'
-        )
-    
-    def _add_exchange_interface(self, draw: ImageDraw.Draw, x: int, y: int, buy_rate: float, sell_rate: float):
-        """Добавляет интерфейс с курсами покупки и продажи"""
-        try:
-            # Пытаемся загрузить шрифты с поддержкой Unicode
-            font_paths = [
-                "/System/Library/Fonts/Arial.ttf",  # macOS
-                "/System/Library/Fonts/Helvetica.ttc",  # macOS
-                "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",  # Linux
-                "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",  # Linux
-                "C:/Windows/Fonts/arial.ttf",  # Windows
-                "C:/Windows/Fonts/calibri.ttf",  # Windows
-                "arial.ttf"
-            ]
-            
-            # Загружаем шрифты разных размеров
-            main_font = None
-            small_font = None
-            
-            for font_path in font_paths:
-                try:
-                    if main_font is None:
-                        main_font = ImageFont.truetype(font_path, 50)
-                    if small_font is None:
-                        small_font = ImageFont.truetype(font_path, 20)
-                    break
-                except:
-                    continue
-            
-            # Если не удалось загрузить шрифты, используем стандартные
-            if main_font is None:
-                main_font = ImageFont.load_default()
-            if small_font is None:
-                small_font = ImageFont.load_default()
-            
-            # Верхняя строка - Покупка
-            buy_y = y + 80
-            
-            # Текст "Покупка" - жирный черный
-            draw.text((x + 60, buy_y), "Покупка", fill='black', font=main_font)
-            
-            # Курс покупки - выровнен по правому краю
-            buy_text = f"{buy_rate:.2f}₽"
-            buy_bbox = draw.textbbox((0, 0), buy_text, font=main_font)
-            buy_width = buy_bbox[2] - buy_bbox[0]
-            buy_x = x + self.card_width - buy_width - 60
-            draw.text((buy_x, buy_y), buy_text, fill='black', font=main_font)
-            
-            # Разделительная линия - тонкая серая
-            line_y = y + 150
-            draw.line([(x + 50, line_y), (x + self.card_width - 50, line_y)], fill='#e5e7eb', width=1)
-            
-            # Нижняя строка - Продажа
-            sell_y = y + 200
-            
-            # Текст "Продажа" - жирный черный
-            draw.text((x + 60, sell_y), "Продажа", fill='black', font=main_font)
-            
-            # Курс продажи - выровнен по правому краю
-            sell_text = f"{sell_rate:.2f}₽"
-            sell_bbox = draw.textbbox((0, 0), sell_text, font=main_font)
-            sell_width = sell_bbox[2] - sell_bbox[0]
-            sell_x = x + self.card_width - sell_width - 60
-            draw.text((sell_x, sell_y), sell_text, fill='black', font=main_font)
-            
-        except Exception as e:
-            logger.error(f"Ошибка добавления интерфейса курсов: {e}")
-    
-    def _draw_time_card(self, draw: ImageDraw.Draw, x: int, y: int, width: int, height: int):
-        """Рисует карточку с временем обновления"""
-        # Тень
-        shadow_offset = 4
-        draw.rounded_rectangle(
-            [x + shadow_offset, y + shadow_offset, 
-             x + width + shadow_offset, y + height + shadow_offset],
-            radius=15,
-            fill=(0, 0, 0, 30)
-        )
+        body {
+            width: 1600px;
+            height: 1000px;
+            background: #3b82f6;
+            background-image: 
+                repeating-linear-gradient(
+                    45deg,
+                    transparent,
+                    transparent 40px,
+                    rgba(59, 130, 246, 0.3) 40px,
+                    rgba(59, 130, 246, 0.3) 80px
+                );
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
         
-        # Основная карточка
-        draw.rounded_rectangle(
-            [x, y, x + width, y + height],
-            radius=15,
-            fill='white'
-        )
-    
-    def _add_update_time(self, draw: ImageDraw.Draw, x: int, y: int, width: int, height: int):
-        """Добавляет время обновления на карточку"""
-        try:
-            from datetime import datetime
-            import pytz
-            
-            # Получаем московское время
-            moscow_tz = pytz.timezone('Europe/Moscow')
-            moscow_time = datetime.now(moscow_tz)
-            
-            # Пытаемся загрузить шрифт
-            font_paths = [
-                "/System/Library/Fonts/Arial.ttf",  # macOS
-                "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",  # Linux
-                "C:/Windows/Fonts/arial.ttf",  # Windows
-                "arial.ttf"
-            ]
-            
-            font = None
-            for font_path in font_paths:
-                try:
-                    font = ImageFont.truetype(font_path, 18)
-                    break
-                except:
-                    continue
-            
-            if font is None:
-                font = ImageFont.load_default()
-            
-            # Форматируем время
-            time_text = f"Обновлено: {moscow_time.strftime('%H:%M • %d.%m.%Y')}"
-            
-            # Центрируем текст
-            text_bbox = draw.textbbox((0, 0), time_text, font=font)
-            text_width = text_bbox[2] - text_bbox[0]
-            text_height = text_bbox[3] - text_bbox[1]
-            text_x = x + (width - text_width) // 2
-            text_y = y + (height - text_height) // 2
-            
-            draw.text((text_x, text_y), time_text, fill='black', font=font)
-            
-        except Exception as e:
-            logger.error(f"Ошибка добавления времени обновления: {e}")
+        body::before {
+            content: 'DX';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                repeating-linear-gradient(
+                    0deg,
+                    transparent,
+                    transparent 80px,
+                    rgba(59, 130, 246, 0.1) 80px,
+                    rgba(59, 130, 246, 0.1) 160px
+                ),
+                repeating-linear-gradient(
+                    90deg,
+                    transparent,
+                    transparent 80px,
+                    rgba(59, 130, 246, 0.1) 80px,
+                    rgba(59, 130, 246, 0.1) 160px
+                );
+            pointer-events: none;
+        }
+        
+        .container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 30px;
+            z-index: 1;
+        }
+        
+        .main-card {
+            width: 1200px;
+            height: 400px;
+            background: white;
+            border-radius: 25px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            padding: 60px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            gap: 40px;
+        }
+        
+        .rate-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            height: 60px;
+        }
+        
+        .rate-label {
+            font-size: 50px;
+            font-weight: bold;
+            color: #000;
+        }
+        
+        .rate-value {
+            font-size: 50px;
+            font-weight: bold;
+            color: #000;
+        }
+        
+        .divider {
+            height: 1px;
+            background: #e5e7eb;
+            width: 100%;
+        }
+        
+        .time-card {
+            width: 400px;
+            height: 60px;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .time-text {
+            font-size: 18px;
+            color: #000;
+            font-weight: 500;
+        }
+        """
 
 
 # Создаем глобальный экземпляр
