@@ -19,7 +19,6 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
-MANIFEST
 
 # Virtual environments
 venv/
@@ -27,6 +26,32 @@ env/
 ENV/
 env.bak/
 venv.bak/
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Cache
+cache/
+*.cache
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+*.tmp
+*.temp
+currency_rates.png
+*.xlsx
 
 # IDE
 .vscode/
@@ -37,48 +62,7 @@ venv.bak/
 
 # OS
 .DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
 Thumbs.db
-
-# Project specific
-.env
-*.log
-cache/
-bot_database.db
-*.db
-
-# Cursor/VS Code extensions
-.cursor/
-.vscode/
 
 # Railway
 .railway/
-
-# Other
-.lesshst
-.runelite/
-
-# Exclude everything except project files
-/*
-!/telegram_bot.py
-!/crypto_api.py
-!/database.py
-!/config.py
-!/validators.py
-!/exceptions.py
-!/cache_manager.py
-!/bestchange_parser.py
-!/grinex_parser.py
-!/database_postgres.py
-!/handlers/
-!/cache/
-!/requirements.txt
-!/Procfile
-!/railway.json
-!/README.md
-!/env.template
-!/.gitignore
