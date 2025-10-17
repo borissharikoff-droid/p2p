@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Генератор изображений с курсами валют - ТОЧНАЯ копия второго скрина
+Генератор изображений с курсами валют - РАБОЧАЯ версия
 """
 
 import os
@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 
 class CurrencyImageGenerator:
-    """Генератор изображений с курсами валют - точная копия второго скрина"""
+    """Генератор изображений с курсами валют"""
     
     def __init__(self):
         self.width = 1600
@@ -22,7 +22,7 @@ class CurrencyImageGenerator:
         
     def generate_currency_card(self, buy_rate: float, sell_rate: float, avg_rate: float) -> Optional[str]:
         """
-        Генерирует изображение с курсами валют ИДЕНТИЧНО как на втором скрине
+        Генерирует изображение с курсами валют
         
         Args:
             buy_rate: Курс покупки
@@ -39,7 +39,7 @@ class CurrencyImageGenerator:
             return None
     
     def _generate_with_pillow(self, buy_rate: float, sell_rate: float, avg_rate: float) -> Optional[str]:
-        """Генерация через Pillow - ТОЧНАЯ копия второго скрина"""
+        """Генерация через Pillow"""
         from PIL import Image, ImageDraw, ImageFont
         
         # Получаем московское время
@@ -47,47 +47,26 @@ class CurrencyImageGenerator:
         moscow_time = datetime.now(moscow_tz)
         time_str = moscow_time.strftime('%H:%M • %d.%m.%Y')
         
-        # Создаем изображение с точным синим фоном
+        # Создаем изображение с синим фоном
         img = Image.new('RGB', (self.width, self.height), color='#3b82f6')
         draw = ImageDraw.Draw(img)
         
-        # Добавляем DX паттерн - точно как на втором скрине
+        # Добавляем DX паттерн
         self._add_dx_pattern(draw)
         
-        # Ищем шрифт с поддержкой кириллицы
-        font_paths = [
-            '/System/Library/Fonts/Arial.ttf',
-            '/System/Library/Fonts/Helvetica.ttc', 
-            '/System/Library/Fonts/SF-Pro-Display-Regular.otf',
-            '/System/Library/Fonts/SF-Pro-Text-Regular.otf',
-            '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
-            '/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf',
-            '/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf'
-        ]
-        
-        # Размеры шрифтов точно как на втором скрине
-        rate_font = None
-        time_font = None
-        
-        for font_path in font_paths:
-            if os.path.exists(font_path):
-                try:
-                    rate_font = ImageFont.truetype(font_path, 50)   # Большие курсы
-                    time_font = ImageFont.truetype(font_path, 18)   # Время
-                    break
-                except:
-                    continue
-        
-        if not rate_font:
-            # Fallback на системный шрифт
+        # Используем Helvetica который точно работает
+        try:
+            rate_font = ImageFont.truetype('/System/Library/Fonts/Helvetica.ttc', 50)
+            time_font = ImageFont.truetype('/System/Library/Fonts/Helvetica.ttc', 18)
+        except:
             rate_font = ImageFont.load_default()
             time_font = ImageFont.load_default()
         
-        # Основная карточка - точно как на втором скрине
+        # Основная карточка
         card_width = 1200
         card_height = 300
         card_x = (self.width - card_width) // 2
-        card_y = (self.height - card_height) // 2 - 50  # Чуть выше центра
+        card_y = (self.height - card_height) // 2 - 50
         
         # Тень карточки
         shadow_offset = 8
@@ -103,7 +82,7 @@ class CurrencyImageGenerator:
             radius=25, fill='#ffffff'
         )
         
-        # Курсы - точно как на втором скрине
+        # Курсы
         y_offset = card_y + 80
         
         # Покупка
@@ -134,10 +113,10 @@ class CurrencyImageGenerator:
         sell_value_width = sell_bbox[2] - sell_bbox[0]
         draw.text((right_margin - sell_value_width, sell_y), sell_value, fill='#000000', font=rate_font)
         
-        # Карточка времени - точно как на втором скрине (маленькая, справа)
+        # Карточка времени
         time_card_width = 350
         time_card_height = 50
-        time_card_x = card_x + card_width - time_card_width - 20  # Справа от основной карточки
+        time_card_x = card_x + card_width - time_card_width - 20
         time_card_y = card_y + card_height + 20
         
         # Тень карточки времени
@@ -161,7 +140,7 @@ class CurrencyImageGenerator:
         time_y = time_card_y + (time_card_height - (time_bbox[3] - time_bbox[1])) // 2
         draw.text((time_x, time_y), time_text, fill='#000000', font=time_font)
         
-        # Стрелка вниз в правом верхнем углу - точно как на втором скрине
+        # Стрелка вниз в правом верхнем углу
         arrow_x = self.width - 50
         arrow_y = 30
         self._draw_arrow_down(draw, arrow_x, arrow_y)
@@ -172,12 +151,10 @@ class CurrencyImageGenerator:
         return filename
     
     def _add_dx_pattern(self, draw):
-        """Добавляет DX паттерн - точно как на втором скрине"""
-        # DX паттерн в пиксельном стиле
+        """Добавляет DX паттерн"""
         pattern_size = 80
         for x in range(0, self.width, pattern_size):
             for y in range(0, self.height, pattern_size):
-                # Рисуем "DX" символы
                 center_x = x + pattern_size // 2
                 center_y = y + pattern_size // 2
                 
@@ -193,8 +170,7 @@ class CurrencyImageGenerator:
                 draw.line([(center_x + 15, center_y - 15), (center_x + 5, center_y + 15)], fill='#3b82f640', width=3)
     
     def _draw_arrow_down(self, draw, x, y):
-        """Рисует стрелку вниз в правом верхнем углу"""
-        # Белая стрелка вниз
+        """Рисует стрелку вниз"""
         arrow_size = 20
         points = [
             (x, y),
