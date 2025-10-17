@@ -159,7 +159,7 @@ class InlineHandler:
                     currency = parsed['currency']
                     wallet_name = parsed.get('wallet')
                     
-                    # Получаем текущий общий курс (уже средний +0.30)
+                    # Получаем текущий общий курс (уже средний -1.5)
                     rate = self.rate_handler.get_current_rate()
                     if not rate:
                         results = [
