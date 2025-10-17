@@ -62,11 +62,11 @@ class CurrencyImageGenerator:
             # Получаем текущее время
             moscow_tz = pytz.timezone('Europe/Moscow')
             current_time = datetime.now(moscow_tz)
-            time_str = current_time.strftime("%H:%M • %d.%m.%Y")
+            time_str = current_time.strftime("%H:%M - %d.%m.%Y")
             
             # Форматируем курсы
-            buy_text = f"{buy_rate:.2f}₽"
-            sell_text = f"{sell_rate:.2f}₽"
+            buy_text = f"{buy_rate:.2f} RUB"
+            sell_text = f"{sell_rate:.2f} RUB"
             
             # Координаты для наложения цифр (рассчитаны для базовой картинки)
             # Позиции для курсов справа в карточке
