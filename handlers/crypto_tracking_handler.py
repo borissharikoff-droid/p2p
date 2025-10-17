@@ -1,0 +1,849 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Обработчик отслеживания криптовалют
+"""
+
+import logging
+import time
+import asyncio
+from typing import List, Dict, Any, Optional
+from datetime import datetime, timedelta
+import pytz
+
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import ContextTypes
+
+from database import DatabaseManager
+from exceptions import ValidationError, DatabaseError
+from validators import validate_crypto_symbol, validate_threshold
+from config import bot_config
+
+
+def build_menu(buttons, n_cols=2):
+    """Создает меню из кнопок с указанным количеством колонок"""
+    menu = []
+    for i in range(0, len(buttons), n_cols):
+        row = buttons[i:i + n_cols]
+        menu.append(row)
+    return menu
+from crypto_api import get_crypto_price, crypto_api, is_symbol_supported
+
+logger = logging.getLogger(__name__)
+
+
+def get_moscow_time() -> datetime:
+    """Получить текущее московское время"""
+    moscow_tz = pytz.timezone('Europe/Moscow')
+    return datetime.now(moscow_tz)
+
+
+def format_crypto_price(price: float) -> str:
+    """Форматировать цену криптовалюты с учетом очень маленьких значений"""
+    if price < 0.01:
+        # Для очень маленьких цен (как PEPE) используем научную нотацию
+        return f"{price:.2e}"
+    elif price < 1:
+        # Для цен меньше 1 используем больше знаков после запятой
+        return f"{price:.6f}".rstrip('0').rstrip('.')
+    else:
+        # Для обычных цен используем стандартное форматирование
+        return f"{price:,.2f}"
+
+
+class CryptoTrackingHandler:
+    """Обработчик отслеживания криптовалют"""
+    
+    def __init__(self, db: DatabaseManager):
+        self.db = db
+        self.waiting_threshold_input: Dict[int, str] = {}  # user_id -> crypto
+        
+        # Расширенный список поддерживаемых криптовалют
+        self.supported_cryptos = {
+            # Топ-8 популярных (быстрый доступ)
+            'BTC': {'name': 'Bitcoin', 'emoji': '₿', 'color': '🟠', 'category': 'top'},
+            'ETH': {'name': 'Ethereum', 'emoji': 'Ξ', 'color': '🔵', 'category': 'top'},
+            'BNB': {'name': 'Binance Coin', 'emoji': '🟡', 'color': '🟡', 'category': 'top'},
+            'SOL': {'name': 'Solana', 'emoji': '🟣', 'color': '🟣', 'category': 'top'},
+            'ADA': {'name': 'Cardano', 'emoji': '🔵', 'color': '🔵', 'category': 'top'},
+            'XRP': {'name': 'Ripple', 'emoji': '💧', 'color': '💧', 'category': 'top'},
+            'DOT': {'name': 'Polkadot', 'emoji': '🔴', 'color': '🔴', 'category': 'top'},
+            'DOGE': {'name': 'Dogecoin', 'emoji': '🐕', 'color': '🐕', 'category': 'top'},
+            
+            # Популярные криптовалюты
+            'USDT': {'name': 'Tether', 'emoji': '₮', 'color': '🟢', 'category': 'other'},
+            'USDC': {'name': 'USD Coin', 'emoji': '💵', 'color': '💵', 'category': 'other'},
+            'DAI': {'name': 'Dai', 'emoji': '🟡', 'color': '🟡', 'category': 'other'},
+            'UNI': {'name': 'Uniswap', 'emoji': '🦄', 'color': '🦄', 'category': 'other'},
+            'LINK': {'name': 'Chainlink', 'emoji': '🔗', 'color': '🔗', 'category': 'other'},
+            'AAVE': {'name': 'Aave', 'emoji': '🦅', 'color': '🦅', 'category': 'other'},
+            'COMP': {'name': 'Compound', 'emoji': '🏦', 'color': '🏦', 'category': 'other'},
+            'SUSHI': {'name': 'SushiSwap', 'emoji': '🍣', 'color': '🍣', 'category': 'other'},
+            'MATIC': {'name': 'Polygon', 'emoji': '🟣', 'color': '🟣', 'category': 'other'},
+            'AVAX': {'name': 'Avalanche', 'emoji': '❄️', 'color': '❄️', 'category': 'other'},
+            'FTM': {'name': 'Fantom', 'emoji': '👻', 'color': '👻', 'category': 'other'},
+            'NEAR': {'name': 'NEAR Protocol', 'emoji': '🌐', 'color': '🌐', 'category': 'other'},
+            'ALGO': {'name': 'Algorand', 'emoji': '🔷', 'color': '🔷', 'category': 'other'},
+            'ATOM': {'name': 'Cosmos', 'emoji': '🌌', 'color': '🌌', 'category': 'other'},
+            'AXS': {'name': 'Axie Infinity', 'emoji': '🎮', 'color': '🎮', 'category': 'other'},
+            'SAND': {'name': 'The Sandbox', 'emoji': '🏖️', 'color': '🏖️', 'category': 'other'},
+            'MANA': {'name': 'Decentraland', 'emoji': '🌍', 'color': '🌍', 'category': 'other'},
+            'ENJ': {'name': 'Enjin Coin', 'emoji': '💎', 'color': '💎', 'category': 'other'},
+            'SHIB': {'name': 'Shiba Inu', 'emoji': '🐕', 'color': '🐕', 'category': 'other'},
+            'PEPE': {'name': 'Pepe', 'emoji': '🐸', 'color': '🐸', 'category': 'other'},
+            'FLOKI': {'name': 'Floki', 'emoji': '🐕', 'color': '🐕', 'category': 'other'},
+            
+            # Другие популярные
+            'LTC': {'name': 'Litecoin', 'emoji': '⚡', 'color': '⚡', 'category': 'other'},
+            'BCH': {'name': 'Bitcoin Cash', 'emoji': '💰', 'color': '💰', 'category': 'other'},
+            'XLM': {'name': 'Stellar', 'emoji': '⭐', 'color': '⭐', 'category': 'other'},
+            'VET': {'name': 'VeChain', 'emoji': '🔗', 'color': '🔗', 'category': 'other'},
+            'FIL': {'name': 'Filecoin', 'emoji': '📁', 'color': '📁', 'category': 'other'},
+            'ICP': {'name': 'Internet Computer', 'emoji': '🌐', 'color': '🌐', 'category': 'other'},
+            'TRX': {'name': 'TRON', 'emoji': '🔴', 'color': '🔴', 'category': 'other'},
+            'ETC': {'name': 'Ethereum Classic', 'emoji': '💎', 'color': '💎', 'category': 'other'},
+            'XMR': {'name': 'Monero', 'emoji': '🔒', 'color': '🔒', 'category': 'other'},
+            'ZEC': {'name': 'Zcash', 'emoji': '🛡️', 'color': '🛡️', 'category': 'other'}
+        }
+        
+        # Топ-8 для быстрого доступа
+        self.top_cryptos = ['BTC', 'ETH', 'BNB', 'SOL', 'ADA', 'XRP', 'DOT', 'DOGE']
+        
+        # Категории
+        self.categories = {
+            'top': '🔥 Топ-8',
+            'other': '📊 Другие'
+        }
+    
+    async def handle_tracking_menu(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Обработчик главного меню отслеживания"""
+        query = update.callback_query
+        user = update.effective_user
+        start_time = time.time()
+        
+        try:
+            # Получаем текущие настройки пользователя
+            user_trackings = self.db.get_tracking_settings(user.id)
+            active_count = sum(1 for t in user_trackings if t.get('is_active', False))
+            
+            # Получаем список отслеживаемых криптовалют
+            tracked_list = [f"${t['crypto']}" for t in user_trackings if t.get('is_active', False)]
+            tracked_text = ", ".join(tracked_list) if tracked_list else "Нет активных отслеживаний"
+            
+            message = "📊 <b>Отслеживание цен криптовалют</b>\n\n"
+            message += f"🔔 Активных отслеживаний: <b>{active_count}</b>\n"
+            message += f"{tracked_text}\n\n"
+            message += "<b>Как это работает:</b>\n"
+            message += "• Выберите криптовалюту для отслеживания\n"
+            message += "• Установите порог изменения цены (например, 5%)\n"
+            message += "• Получайте уведомления при росте/падении\n\n"
+            message += "<b>Формат уведомлений:</b>\n"
+            message += "🟢 BTC $45,250 (+5.15%)\n"
+            message += "🔴 ETH $2,850 (-3.20%)\n\n"
+            message += "Выберите действие:"
+            
+            keyboard = [
+                [InlineKeyboardButton("🪙 Выбрать криптовалюты", callback_data="tracking_select_crypto")],
+                [InlineKeyboardButton("📋 Мои отслеживания цен", callback_data="tracking_my_list")],
+                [InlineKeyboardButton("🏠 Главное меню", callback_data="back_to_menu")]
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            
+            await query.edit_message_text(message, parse_mode='HTML', reply_markup=reply_markup)
+            
+            # Логируем команду
+            response_time = time.time() - start_time
+            self.db.log_command(user.id, 'tracking_menu', '', response_time)
+            
+        except DatabaseError as e:
+            logger.error(f"Ошибка базы данных в tracking_menu: {e}")
+            await query.edit_message_text("❌ Ошибка базы данных. Попробуйте позже.")
+        except Exception as e:
+            logger.error(f"Ошибка в tracking_menu: {e}")
+            await query.edit_message_text("❌ Произошла ошибка. Попробуйте позже.")
+    
+    async def handle_tracking_select_crypto(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Обработчик выбора криптовалют для отслеживания"""
+        query = update.callback_query
+        user = update.effective_user
+        start_time = time.time()
+        
+        try:
+            # Получаем текущие настройки пользователя
+            user_trackings = self.db.get_tracking_settings(user.id)
+            tracked_cryptos = {t['crypto'] for t in user_trackings if t.get('is_active', True)}
+            
+            message = "🪙 <b>Выбор криптовалют для отслеживания цен</b>\n\n"
+            message += f"📊 Доступно: <b>{len(self.supported_cryptos)}</b> криптовалют\n"
+            message += f"🔔 Отслеживается: <b>{len(tracked_cryptos)}</b>\n\n"
+            message += "<b>🔥 Топ-8 (быстрый выбор):</b>\n"
+            
+            # Создаем кнопки для топ-8 криптовалют
+            top_buttons = []
+            for crypto in self.top_cryptos:
+                if crypto in self.supported_cryptos:
+                    is_tracked = crypto in tracked_cryptos
+                    button_text = f"{'✅' if is_tracked else '⬜'} ${crypto}"
+                    top_buttons.append(InlineKeyboardButton(button_text, callback_data=f"tracking_crypto_{crypto}"))
+            
+            keyboard = build_menu(top_buttons, n_cols=2)
+            
+            # Добавляем кнопки поиска
+            
+            # Кнопки поиска и навигации
+            keyboard.append([
+                InlineKeyboardButton("🔍 Поиск", callback_data="tracking_search"),
+                InlineKeyboardButton("📋 Все", callback_data="tracking_all")
+            ])
+            keyboard.append([InlineKeyboardButton("🏠 Главное меню", callback_data="back_to_menu")])
+            
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            
+            await query.edit_message_text(message, parse_mode='HTML', reply_markup=reply_markup)
+            
+            # Логируем команду
+            response_time = time.time() - start_time
+            self.db.log_command(user.id, 'tracking_select_crypto', '', response_time)
+            
+        except DatabaseError as e:
+            logger.error(f"Ошибка базы данных в tracking_select_crypto: {e}")
+            await query.edit_message_text("❌ Ошибка базы данных. Попробуйте позже.")
+        except Exception as e:
+            logger.error(f"Ошибка в tracking_select_crypto: {e}")
+            await query.edit_message_text("❌ Произошла ошибка. Попробуйте позже.")
+    
+    async def handle_tracking_crypto_toggle(self, update: Update, context: ContextTypes.DEFAULT_TYPE, crypto: str) -> None:
+        """Обработчик включения/выключения отслеживания криптовалюты"""
+        query = update.callback_query
+        user = update.effective_user
+        
+        try:
+            # Валидируем символ криптовалюты
+            crypto = validate_crypto_symbol(crypto)
+            
+            # Получаем текущие настройки
+            user_trackings = self.db.get_tracking_settings(user.id)
+            current_tracking = next((t for t in user_trackings if t['crypto'] == crypto), None)
+            
+            if current_tracking and current_tracking.get('is_active', False):
+                # Отключаем отслеживание
+                success = self.db.toggle_crypto_tracking(user.id, crypto)
+                if success:
+                    await query.answer(f"❌ Отслеживание {crypto} отключено")
+                else:
+                    await query.answer("❌ Ошибка отключения отслеживания")
+            else:
+                # Включаем отслеживание с порогом по умолчанию
+                success = self.db.toggle_crypto_tracking(user.id, crypto)
+                if success:
+                    # Устанавливаем порог по умолчанию 5%
+                    self.db.set_crypto_threshold(user.id, crypto, 5.0)
+                    await query.answer(f"✅ Отслеживание {crypto} включено (порог: 5%)")
+                else:
+                    await query.answer("❌ Ошибка включения отслеживания")
+            
+            # Обновляем меню
+            await self.handle_tracking_select_crypto(update, context)
+            
+        except ValidationError as e:
+            await query.answer(f"❌ {e}")
+        except DatabaseError as e:
+            logger.error(f"Ошибка базы данных в tracking_crypto_toggle: {e}")
+            await query.answer("❌ Ошибка базы данных")
+        except Exception as e:
+            logger.error(f"Ошибка в tracking_crypto_toggle: {e}")
+            await query.answer("❌ Произошла ошибка")
+    
+    async def handle_tracking_my_list(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Обработчик списка моих отслеживаний"""
+        query = update.callback_query
+        user = update.effective_user
+        start_time = time.time()
+        
+        try:
+            # Получаем настройки пользователя
+            user_trackings = self.db.get_tracking_settings(user.id)
+            active_trackings = [t for t in user_trackings if t.get('is_active', False)]
+            
+            if not active_trackings:
+                message = "📋 <b>Мои отслеживания</b>\n\n"
+                message += "У вас нет активных отслеживаний.\n\n"
+                message += "Нажмите \"Выбрать криптовалюты\" чтобы добавить отслеживание."
+                
+                keyboard = [
+                    [InlineKeyboardButton("🪙 Выбрать криптовалюты", callback_data="tracking_select_crypto")],
+                    [InlineKeyboardButton("🏠 Главное меню", callback_data="back_to_menu")]
+                ]
+                reply_markup = InlineKeyboardMarkup(keyboard)
+                
+                await query.edit_message_text(message, parse_mode='HTML', reply_markup=reply_markup)
+                return
+            
+            message = "📋 <b>Мои отслеживания</b>\n\n"
+            
+            # Создаем кнопки для каждого отслеживания
+            keyboard = []
+            for tracking in active_trackings:
+                crypto = tracking['crypto']
+                threshold = tracking['threshold']
+                
+                button_text = f"${crypto} • {threshold}%"
+                keyboard.append([InlineKeyboardButton(button_text, callback_data=f"tracking_manage_{crypto}")])
+            
+            keyboard.append([InlineKeyboardButton("🏠 Главное меню", callback_data="back_to_menu")])
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            
+            await query.edit_message_text(message, parse_mode='HTML', reply_markup=reply_markup)
+            
+            # Логируем команду
+            response_time = time.time() - start_time
+            self.db.log_command(user.id, 'tracking_my_list', '', response_time)
+            
+        except DatabaseError as e:
+            logger.error(f"Ошибка базы данных в tracking_my_list: {e}")
+            await query.edit_message_text("❌ Ошибка базы данных. Попробуйте позже.")
+        except Exception as e:
+            logger.error(f"Ошибка в tracking_my_list: {e}")
+            await query.edit_message_text("❌ Произошла ошибка. Попробуйте позже.")
+    
+    async def handle_tracking_manage(self, update: Update, context: ContextTypes.DEFAULT_TYPE, crypto: str) -> None:
+        """Обработчик управления конкретным отслеживанием"""
+        query = update.callback_query
+        user = update.effective_user
+        
+        try:
+            # Валидируем символ криптовалюты
+            crypto = validate_crypto_symbol(crypto)
+            
+            # Получаем настройки для этой криптовалюты
+            user_trackings = self.db.get_tracking_settings(user.id)
+            tracking = next((t for t in user_trackings if t['crypto'] == crypto), None)
+            
+            if not tracking:
+                await query.answer("❌ Отслеживание не найдено")
+                return
+            
+            threshold = tracking['threshold']
+            
+            # Получаем информацию о криптовалюте
+            if crypto in self.supported_cryptos:
+                info = self.supported_cryptos[crypto]
+                crypto_name = info['name']
+            else:
+                # Для криптовалют из API создаем базовую информацию
+                crypto_name = crypto
+            
+            message = f"⚙️ <b>Управление отслеживанием</b>\n\n"
+            message += f"<b>{crypto} ({crypto_name})</b>\n"
+            message += f"🔔 Порог уведомлений: <b>{threshold}%</b>\n\n"
+            message += "Выберите действие:"
+            
+            keyboard = [
+                [InlineKeyboardButton(f"📊 Изменить порог ({threshold}%)", callback_data=f"tracking_set_threshold_{crypto}")],
+                [InlineKeyboardButton("❌ Отключить отслеживание", callback_data=f"tracking_toggle_{crypto}")],
+                [InlineKeyboardButton("⬅️ Назад к списку", callback_data="tracking_my_list")]
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            
+            await query.edit_message_text(message, parse_mode='HTML', reply_markup=reply_markup)
+            
+        except ValidationError as e:
+            await query.answer(f"❌ {e}")
+        except DatabaseError as e:
+            logger.error(f"Ошибка базы данных в tracking_manage: {e}")
+            await query.answer("❌ Ошибка базы данных")
+        except Exception as e:
+            logger.error(f"Ошибка в tracking_manage: {e}")
+            await query.answer("❌ Произошла ошибка")
+    
+    async def handle_tracking_set_threshold(self, update: Update, context: ContextTypes.DEFAULT_TYPE, crypto: str) -> None:
+        """Обработчик установки порога уведомлений"""
+        query = update.callback_query
+        user = update.effective_user
+        
+        try:
+            # Валидируем символ криптовалюты
+            crypto = validate_crypto_symbol(crypto)
+            
+            # Получаем информацию о криптовалюте
+            if crypto in self.supported_cryptos:
+                info = self.supported_cryptos[crypto]
+                crypto_name = info['name']
+            else:
+                # Для криптовалют из API создаем базовую информацию
+                crypto_name = crypto
+            
+            message = f"📊 <b>Установка порога для {crypto}</b>\n\n"
+            message += f"<b>{crypto} ({crypto_name})</b>\n\n"
+            message += "Введите порог изменения цены в процентах:\n\n"
+            message += "<b>Примеры:</b>\n"
+            message += "• <code>1</code> - уведомления при изменении на 1%\n"
+            message += "• <code>2.5</code> - уведомления при изменении на 2.5%\n"
+            message += "• <code>5</code> - уведомления при изменении на 5%\n"
+            message += "• <code>10</code> - уведомления при изменении на 10%\n\n"
+            message += "Минимум: 1%, Максимум: 50%"
+            
+            keyboard = [
+                [InlineKeyboardButton("1%", callback_data=f"tracking_threshold_{crypto}_1")],
+                [InlineKeyboardButton("2.5%", callback_data=f"tracking_threshold_{crypto}_2.5")],
+                [InlineKeyboardButton("5%", callback_data=f"tracking_threshold_{crypto}_5")],
+                [InlineKeyboardButton("10%", callback_data=f"tracking_threshold_{crypto}_10")],
+                [InlineKeyboardButton("⬅️ Назад", callback_data=f"tracking_manage_{crypto}")]
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            
+            await query.edit_message_text(message, parse_mode='HTML', reply_markup=reply_markup)
+            
+            # Устанавливаем ожидание ввода порога
+            self.waiting_threshold_input[user.id] = crypto
+            
+        except ValidationError as e:
+            await query.answer(f"❌ {e}")
+        except Exception as e:
+            logger.error(f"Ошибка в tracking_set_threshold: {e}")
+            await query.answer("❌ Произошла ошибка")
+    
+    async def handle_tracking_threshold_set(self, update: Update, context: ContextTypes.DEFAULT_TYPE, crypto: str, threshold: float) -> None:
+        """Обработчик установки конкретного порога"""
+        query = update.callback_query
+        user = update.effective_user
+        
+        try:
+            # Валидируем данные
+            crypto = validate_crypto_symbol(crypto)
+            threshold = validate_threshold(threshold)
+            
+            # Устанавливаем порог
+            success = self.db.set_crypto_threshold(user.id, crypto, threshold)
+            
+            if success:
+                await query.answer(f"✅ Порог для {crypto} установлен: {threshold}%")
+                # Возвращаемся к управлению отслеживанием
+                await self.handle_tracking_manage(update, context, crypto)
+            else:
+                await query.answer("❌ Ошибка установки порога")
+            
+        except ValidationError as e:
+            await query.answer(f"❌ {e}")
+        except DatabaseError as e:
+            logger.error(f"Ошибка базы данных в tracking_threshold_set: {e}")
+            await query.answer("❌ Ошибка базы данных")
+        except Exception as e:
+            logger.error(f"Ошибка в tracking_threshold_set: {e}")
+            await query.answer("❌ Произошла ошибка")
+    
+    async def handle_tracking_threshold_message(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Обработчик текстового ввода порога"""
+        if not update.message or not update.effective_user:
+            return
+        
+        user = update.effective_user
+        text = update.message.text.strip()
+        
+        try:
+            # Проверяем, ожидает ли бот ввод порога
+            if user.id not in self.waiting_threshold_input:
+                return
+            
+            # Проверяем, не является ли это поисковым запросом
+            if hasattr(self, 'waiting_search_input') and user.id in self.waiting_search_input:
+                # Это поисковый запрос, обрабатываем его
+                await self.handle_tracking_search_message(update, context)
+                return
+            
+            crypto = self.waiting_threshold_input[user.id]
+            
+            # Валидируем введенный порог
+            threshold = validate_threshold(float(text))
+            crypto = validate_crypto_symbol(crypto)
+            
+            # Устанавливаем порог
+            success = self.db.set_crypto_threshold(user.id, crypto, threshold)
+            
+            if success:
+                # Убираем из ожидания
+                del self.waiting_threshold_input[user.id]
+                
+                # Показываем успешное сообщение
+                if crypto in self.supported_cryptos:
+                    info = self.supported_cryptos[crypto]
+                    message = f"✅ <b>Порог установлен</b>\n\n"
+                    message += f"{info['emoji']} <b>{crypto} ({info['name']})</b>\n"
+                    message += f"🔔 Порог уведомлений: <b>{threshold}%</b>\n\n"
+                    message += "Теперь вы будете получать уведомления при изменении цены на указанный процент."
+                    
+                    keyboard = [
+                        [InlineKeyboardButton("📋 Мои отслеживания цен", callback_data="tracking_my_list")],
+                        [InlineKeyboardButton("🏠 Главное меню", callback_data="back_to_menu")]
+                    ]
+                    reply_markup = InlineKeyboardMarkup(keyboard)
+                    
+                    await update.message.reply_text(message, parse_mode='HTML', reply_markup=reply_markup)
+                else:
+                    await update.message.reply_text(f"✅ Порог для {crypto} установлен: {threshold}%")
+            else:
+                await update.message.reply_text("❌ Ошибка установки порога. Попробуйте еще раз.")
+                
+        except ValidationError as e:
+            await update.message.reply_text(f"❌ {e}\n\nПопробуйте еще раз:")
+        except ValueError:
+            await update.message.reply_text("❌ Неверный формат числа. Введите число (например: 5 или 2.5)")
+        except Exception as e:
+            logger.error(f"Ошибка в tracking_threshold_message: {e}")
+            await update.message.reply_text("❌ Произошла ошибка. Попробуйте еще раз.")
+    
+    def is_waiting_threshold_input(self, user_id: int) -> bool:
+        """Проверить, ожидает ли бот ввод порога от пользователя"""
+        return user_id in self.waiting_threshold_input
+    
+    
+    async def handle_tracking_search(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Обработчик поиска криптовалют"""
+        query = update.callback_query
+        user = update.effective_user
+        
+        try:
+            message = "🔍 <b>Поиск криптовалют</b>\n\n"
+            message += "Введите символ или название криптовалюты:\n\n"
+            message += "<b>Примеры:</b>\n"
+            message += "• <code>BTC</code> - Bitcoin\n"
+            message += "• <code>ETH</code> - Ethereum\n"
+            message += "• <code>SOL</code> - Solana\n"
+            message += "• <code>Bitcoin</code> - Bitcoin\n\n"
+            message += "Или выберите из популярных:"
+            
+            # Показываем несколько популярных для быстрого выбора
+            keyboard = []
+            popular = ['BTC', 'ETH', 'SOL', 'ADA', 'XRP', 'DOT', 'DOGE', 'MATIC']
+            for i in range(0, len(popular), 2):
+                row = []
+                for j in range(2):
+                    if i + j < len(popular):
+                        crypto = popular[i + j]
+                        if crypto in self.supported_cryptos:
+                            info = self.supported_cryptos[crypto]
+                            row.append(InlineKeyboardButton(f"${crypto}", callback_data=f"tracking_crypto_{crypto}"))
+                keyboard.append(row)
+            
+            keyboard.append([InlineKeyboardButton("⬅️ Назад к выбору", callback_data="tracking_select_crypto")])
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            
+            await query.edit_message_text(message, parse_mode='HTML', reply_markup=reply_markup)
+            
+            # Устанавливаем ожидание поискового запроса
+            self.waiting_search_input = getattr(self, 'waiting_search_input', set())
+            self.waiting_search_input.add(user.id)
+            
+        except Exception as e:
+            logger.error(f"Ошибка в handle_tracking_search: {e}")
+            await query.answer("❌ Произошла ошибка")
+    
+    async def handle_tracking_all(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Обработчик показа всех криптовалют"""
+        query = update.callback_query
+        user = update.effective_user
+        
+        try:
+            # Получаем текущие настройки пользователя
+            user_trackings = self.db.get_tracking_settings(user.id)
+            tracked_cryptos = {t['crypto'] for t in user_trackings if t.get('is_active', True)}
+            
+            message = "📋 <b>Все криптовалюты</b>\n\n"
+            message += f"📊 Всего: <b>{len(self.supported_cryptos)}</b> криптовалют\n"
+            message += f"🔔 Отслеживается: <b>{len(tracked_cryptos)}</b>\n\n"
+            message += "Выберите криптовалюты для отслеживания:\n\n"
+            
+            # Создаем кнопки для всех криптовалют
+            all_buttons = []
+            for crypto, info in self.supported_cryptos.items():
+                is_tracked = crypto in tracked_cryptos
+                button_text = f"{'✅' if is_tracked else '⬜'} ${crypto}"
+                all_buttons.append(InlineKeyboardButton(button_text, callback_data=f"tracking_crypto_{crypto}"))
+            
+            keyboard = build_menu(all_buttons, n_cols=2)
+            
+            keyboard.append([InlineKeyboardButton("⬅️ Назад к выбору", callback_data="tracking_select_crypto")])
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            
+            await query.edit_message_text(message, parse_mode='HTML', reply_markup=reply_markup)
+            
+        except Exception as e:
+            logger.error(f"Ошибка в handle_tracking_all: {e}")
+            await query.answer("❌ Произошла ошибка")
+    
+    async def handle_tracking_search_message(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Обработчик текстового поиска криптовалют"""
+        if not update.message or not update.effective_user:
+            return
+        
+        user = update.effective_user
+        text = update.message.text.strip().upper()
+        
+        try:
+            # Проверяем, ожидает ли бот поисковый запрос
+            if not hasattr(self, 'waiting_search_input') or user.id not in self.waiting_search_input:
+                # Если пользователь не в состоянии ожидания поиска, но отправил тикер,
+                # автоматически начинаем поиск (для повторных попыток после ошибки)
+                if len(text) <= 10 and text.isalpha():  # Простая проверка на тикер
+                    # Добавляем пользователя в состояние ожидания поиска
+                    if not hasattr(self, 'waiting_search_input'):
+                        self.waiting_search_input = set()
+                    self.waiting_search_input.add(user.id)
+                else:
+                    return
+            
+            # Убираем из ожидания
+            self.waiting_search_input.discard(user.id)
+            
+            # Ищем криптовалюту
+            found_cryptos = []
+            
+            # Проверяем, поддерживается ли криптовалюта (динамический список с бирж)
+            if await is_symbol_supported(text):
+                # Создаем базовую информацию для найденной криптовалюты
+                crypto_info = {
+                    'name': text,  # Будет заменено на реальное название при получении цены
+                    'emoji': '🪙',
+                    'color': '🟡',
+                    'category': 'other'
+                }
+                found_cryptos.append((text, crypto_info))
+            else:
+                # Поиск по символу в локальном списке
+                if text in self.supported_cryptos:
+                    found_cryptos.append((text, self.supported_cryptos[text]))
+                else:
+                    # Поиск по названию в локальном списке
+                    for crypto, info in self.supported_cryptos.items():
+                        if text in info['name'].upper():
+                            found_cryptos.append((crypto, info))
+            
+            if not found_cryptos:
+                keyboard = [
+                    [InlineKeyboardButton("🔙 Назад", callback_data="tracking_select_crypto")]
+                ]
+                reply_markup = InlineKeyboardMarkup(keyboard)
+                
+                await update.message.reply_text(
+                    f"❌ Криптовалюта '{text}' не найдена.\n\n"
+                    "Попробуйте:\n"
+                    "• BTC, ETH, SOL, ADA\n"
+                    "• Bitcoin, Ethereum, Solana\n"
+                    "• Или выберите из категорий",
+                    reply_markup=reply_markup
+                )
+                return
+            
+            # Получаем текущие настройки пользователя
+            user_trackings = self.db.get_tracking_settings(user.id)
+            tracked_cryptos = {t['crypto'] for t in user_trackings if t.get('is_active', True)}
+            
+            if len(found_cryptos) == 1:
+                # Одна найденная криптовалюта - сразу предлагаем добавить
+                crypto, info = found_cryptos[0]
+                is_tracked = crypto in tracked_cryptos
+                
+                if is_tracked:
+                    message = f"✅ <b>{crypto} уже отслеживается</b>\n\n"
+                    message += f"{info['emoji']} <b>{crypto} ({info['name']})</b>\n"
+                    message += "Выберите действие:"
+                    
+                    keyboard = [
+                        [InlineKeyboardButton("⚙️ Управление", callback_data=f"tracking_manage_{crypto}")],
+                        [InlineKeyboardButton("🔍 Поиск еще", callback_data="tracking_search")]
+                    ]
+                else:
+                    message = f"🎯 <b>Найдена криптовалюта</b>\n\n"
+                    message += f"{info['emoji']} <b>{crypto} ({info['name']})</b>\n\n"
+                    message += "Добавить в отслеживание?"
+                    
+                    keyboard = [
+                        [InlineKeyboardButton("✅ Добавить", callback_data=f"tracking_crypto_{crypto}")],
+                        [InlineKeyboardButton("🔍 Поиск еще", callback_data="tracking_search")]
+                    ]
+                
+                reply_markup = InlineKeyboardMarkup(keyboard)
+                await update.message.reply_text(message, parse_mode='HTML', reply_markup=reply_markup)
+            else:
+                # Несколько найденных - показываем список
+                message = f"🔍 <b>Найдено {len(found_cryptos)} криптовалют:</b>\n\n"
+                
+                keyboard = []
+                for crypto, info in found_cryptos[:10]:  # Ограничиваем до 10
+                    is_tracked = crypto in tracked_cryptos
+                    button_text = f"{'✅' if is_tracked else '⬜'} ${crypto}"
+                    keyboard.append([InlineKeyboardButton(button_text, callback_data=f"tracking_crypto_{crypto}")])
+                
+                keyboard.append([InlineKeyboardButton("🔍 Поиск еще", callback_data="tracking_search")])
+                reply_markup = InlineKeyboardMarkup(keyboard)
+                
+                await update.message.reply_text(message, parse_mode='HTML', reply_markup=reply_markup)
+                
+        except Exception as e:
+            logger.error(f"Ошибка в handle_tracking_search_message: {e}")
+            await update.message.reply_text("❌ Произошла ошибка при поиске. Попробуйте еще раз.")
+    
+    def is_waiting_search_input(self, user_id: int) -> bool:
+        """Проверить, ожидает ли бот поисковый запрос от пользователя"""
+        return hasattr(self, 'waiting_search_input') and user_id in self.waiting_search_input
+    
+    
+    async def send_price_notification(self, user_id: int, crypto: str, current_price: float, 
+                                    previous_price: float, change_percent: float, threshold: float) -> None:
+        """Отправить уведомление об изменении цены"""
+        try:
+            if crypto not in self.supported_cryptos:
+                return
+            
+            info = self.supported_cryptos[crypto]
+            
+            # Определяем цвет и символ изменения
+            if change_percent > 0:
+                color = "🟢"
+                change_symbol = "+"
+            else:
+                color = "🔴"
+                change_symbol = ""
+            
+            # Форматируем сообщение с учетом очень маленьких цен
+            price_str = format_crypto_price(current_price)
+            message = f"{color} {crypto} ${price_str} ({change_symbol}{change_percent:.2f}%)\n"
+            message += f"📊 Порог: {threshold}% • {info['name']}"
+            
+            # Отправляем уведомление
+            if self.application:
+                await self.application.bot.send_message(
+                    chat_id=user_id,
+                    text=message,
+                    parse_mode='HTML'
+                )
+            
+            logger.info(f"Отправлено уведомление пользователю {user_id}: {crypto} {change_percent:.2f}%")
+            
+        except Exception as e:
+            logger.error(f"Ошибка отправки уведомления: {e}")
+    
+    
+    async def get_crypto_price(self, crypto: str) -> Optional[float]:
+        """Получить текущую цену криптовалюты"""
+        try:
+            # Используем реальный API
+            price = await get_crypto_price(crypto)
+            
+            if price:
+                return price
+            
+            # Fallback к моковым данным если API недоступен
+            logger.warning(f"API недоступен, используем моковые данные для {crypto}")
+            mock_prices = {
+                'BTC': 45000.0,
+                'ETH': 2800.0,
+                'USDT': 1.0,
+                'BNB': 320.0,
+                'ADA': 0.45,
+                'SOL': 95.0,
+                'XRP': 0.52,
+                'DOT': 6.8,
+                'DOGE': 0.08,
+                'MATIC': 0.85,
+                'LTC': 72.0,
+                'BCH': 240.0,
+                'LINK': 14.5,
+                'UNI': 6.2,
+                'PEPE': 0.00000123,  # Примерная цена PEPE
+                'APEX': 1.38,        # Примерная цена APEX (CMC пример)
+                'SHIB': 0.0000089,   # Примерная цена SHIB
+                'FLOKI': 0.000012    # Примерная цена FLOKI
+            }
+            
+            return mock_prices.get(crypto.upper())
+            
+        except Exception as e:
+            logger.error(f"Ошибка получения цены {crypto}: {e}")
+            return None
+    
+    async def check_price_alerts(self) -> None:
+        """Проверить активные отслеживания и отправить уведомления по накопительному изменению с последнего уведомления"""
+        try:
+            logger.info("🔍 Начинаем проверку цен для уведомлений...")
+            
+            # Получаем все активные отслеживания
+            active_trackings = self.db.get_active_trackings()
+            
+            if not active_trackings:
+                logger.info("📭 Нет активных отслеживаний")
+                return
+            
+            logger.info(f"📊 Найдено {len(active_trackings)} активных отслеживаний")
+            
+            # Группируем по криптовалютам для оптимизации запросов
+            cryptos_to_check = list(set(tracking['crypto'] for tracking in active_trackings))
+            
+            for crypto in cryptos_to_check:
+                logger.info(f"💰 Проверяем цену для {crypto}...")
+                
+                # Получаем текущую цену
+                current_price = await get_crypto_price(crypto)
+                
+                # Находим все отслеживания для этой криптовалюты
+                crypto_trackings = [t for t in active_trackings if t['crypto'] == crypto]
+                
+                if not current_price:
+                    logger.warning(f"❌ Не удалось получить цену для {crypto}")
+                    continue
+                
+                logger.info(f"✅ {crypto}: ${format_crypto_price(current_price)}")
+                
+                for tracking in crypto_trackings:
+                    user_id = tracking['user_id']
+                    threshold = tracking['threshold']
+                    last_price = tracking['last_price']
+                    baseline_price = tracking.get('last_notified_price')
+                    last_notification = tracking['last_notification']
+                    
+                    logger.info(f"👤 Пользователь {user_id}: {crypto}, порог {threshold}%, последняя цена: {last_price}, база: {baseline_price}")
+                    
+                    # Если это первая цена
+                    if last_price is None:
+                        logger.info(f"🆕 Первая цена для {crypto}: ${current_price:,.2f}")
+                        # Сохраняем первую цену
+                        self.db.update_tracking_price(user_id, crypto, current_price)
+                        # Инициализируем базовую цену
+                        if hasattr(self.db, 'update_tracking_baseline'):
+                            self.db.update_tracking_baseline(user_id, crypto, current_price)
+                        continue
+                    
+                    # Если базовая цена еще не установлена, зафиксируем ее ОДИН РАЗ
+                    if baseline_price is None:
+                        baseline_price = last_price
+                        if hasattr(self.db, 'update_tracking_baseline') and last_price is not None:
+                            self.db.update_tracking_baseline(user_id, crypto, last_price)
+                            logger.info(f"📌 Зафиксирована базовая цена для {crypto}: {last_price}")
+                    
+                    # Вычисляем изменение относительно базовой цены (накопительное)
+                    change_percent = ((current_price - baseline_price) / baseline_price) * 100
+                    logger.info(f"📈 {crypto}: накопительное изменение {change_percent:+.2f}% от базы (порог: {threshold}%)")
+                    
+                    # Проверяем, превышен ли порог накопительно
+                    if abs(change_percent) >= threshold:
+                        logger.info(f"🚨 Порог превышен! {crypto}: {change_percent:+.2f}% >= {threshold}% (накопительно)")
+                        
+                        # Отправляем уведомление сразу (без защиты от спама)
+                        logger.info(f"📤 Отправляем уведомление пользователю {user_id}")
+                        await self.send_price_notification(
+                            user_id, crypto, current_price, last_price, change_percent, threshold
+                        )
+                        # Обновляем базовую цену и отметку уведомления
+                        if hasattr(self.db, 'update_tracking_baseline'):
+                            self.db.update_tracking_baseline(user_id, crypto, current_price)
+                        if hasattr(self.db, 'update_tracking_notification'):
+                            self.db.update_tracking_notification(user_id, crypto)
+                    else:
+                        logger.info(f"✅ Накопительное изменение {change_percent:+.2f}% меньше порога {threshold}%")
+                    
+                    # Обновляем последнюю цену
+                    self.db.update_tracking_price(user_id, crypto, current_price)
+                    
+        except Exception as e:
+            logger.error(f"Ошибка проверки уведомлений: {e}")
+    
