@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 Генератор изображений для курсов валют
-Использует статичный шаблон и накладывает только цифры
+Использует базовую картинку и накладывает только цифры справа
 """
 
 import os
@@ -17,14 +17,7 @@ class CurrencyImageGenerator:
     """Генератор изображений курсов валют"""
     
     def __init__(self):
-        self.width = 600
-        self.height = 400
-        self.template_path = 'currency_template.png'
-        
-        # Координаты для наложения текста (рассчитаны для шаблона)
-        self.buy_rate_position = (420, 120)  # Позиция для курса покупки
-        self.sell_rate_position = (420, 185)  # Позиция для курса продажи
-        self.time_position = (200, 320)  # Позиция для времени
+        self.base_template_path = 'base_template.png'
         
         # Загружаем шрифт
         self._load_font()
@@ -57,13 +50,13 @@ class CurrencyImageGenerator:
             str: Путь к созданному файлу изображения
         """
         try:
-            # Проверяем существование шаблона
-            if not os.path.exists(self.template_path):
-                logger.error(f"Шаблон не найден: {self.template_path}")
+            # Проверяем существование базового шаблона
+            if not os.path.exists(self.base_template_path):
+                logger.error(f"Базовый шаблон не найден: {self.base_template_path}")
                 return None
             
-            # Загружаем шаблон
-            img = Image.open(self.template_path)
+            # Загружаем базовую картинку
+            img = Image.open(self.base_template_path)
             draw = ImageDraw.Draw(img)
             
             # Получаем текущее время
@@ -75,7 +68,19 @@ class CurrencyImageGenerator:
             buy_text = f"{buy_rate:.2f}₽"
             sell_text = f"{sell_rate:.2f}₽"
             
-            # Получаем размеры текста для центрирования
+            # Координаты для наложения цифр (рассчитаны для базовой картинки)
+            # Позиции для курсов справа в карточке
+            buy_x = 420  # X координата для курса покупки
+            buy_y = 120  # Y координата для курса покупки
+            
+            sell_x = 420  # X координата для курса продажи  
+            sell_y = 185  # Y координата для курса продажи
+            
+            # Позиция для времени в нижней карточке
+            time_x = 200  # X координата для времени
+            time_y = 320  # Y координата для времени
+            
+            # Получаем размеры текста для правильного позиционирования
             buy_bbox = draw.textbbox((0, 0), buy_text, font=self.rate_font)
             buy_width = buy_bbox[2] - buy_bbox[0]
             
@@ -85,17 +90,18 @@ class CurrencyImageGenerator:
             time_bbox = draw.textbbox((0, 0), time_str, font=self.time_font)
             time_width = time_bbox[2] - time_bbox[0]
             
-            # Вычисляем позиции для выравнивания по правому краю
-            right_margin = 460  # Отступ от правого края карточки
-            
+            # Выравниваем по правому краю для курсов
+            right_margin = 460  # Отступ от правого края
             buy_x = right_margin - buy_width
             sell_x = right_margin - sell_width
-            time_x = self.time_position[0] + (200 - time_width) // 2  # Центрируем время
             
-            # Накладываем текст поверх шаблона
-            draw.text((buy_x, self.buy_rate_position[1]), buy_text, fill='#000000', font=self.rate_font)
-            draw.text((sell_x, self.sell_rate_position[1]), sell_text, fill='#000000', font=self.rate_font)
-            draw.text((time_x, self.time_position[1]), time_str, fill='#000000', font=self.time_font)
+            # Центрируем время
+            time_x = time_x + (200 - time_width) // 2
+            
+            # Накладываем только цифры поверх базовой картинки
+            draw.text((buy_x, buy_y), buy_text, fill='#000000', font=self.rate_font)
+            draw.text((sell_x, sell_y), sell_text, fill='#000000', font=self.rate_font)
+            draw.text((time_x, time_y), time_str, fill='#000000', font=self.time_font)
             
             # Сохраняем изображение
             filename = 'currency_rates.png'

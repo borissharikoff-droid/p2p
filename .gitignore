@@ -53,8 +53,9 @@ logs/
 currency_rates.png
 *.xlsx
 
-# Keep template file
+# Keep template files
 !currency_template.png
+!base_template.png
 
 # IDE
 .vscode/
