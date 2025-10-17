@@ -40,7 +40,7 @@ class RateHandler:
     def get_current_rate(self) -> Optional[float]:
         """Получить текущий курс USDT"""
         try:
-            # Вспомогательная функция: средний по топ-10 buy/sell -1.5
+            # Вспомогательная функция: средний по топ-10 buy/sell
             def _compute_mid_plus_margin(data: Any) -> Optional[float]:
                 if isinstance(data, list):
                     # Legacy: нет разделения, берем топ-10 и усредняем
@@ -48,7 +48,7 @@ class RateHandler:
                     if not base_rates:
                         return None
                     mid = sum(base_rates) / len(base_rates)
-                    return round(mid - 1.5, 2)
+                    return round(mid, 2)
                 if isinstance(data, dict):
                     buy_top = [ex['rate'] for ex in data.get('buy', [])[:10]]
                     sell_top = [ex['rate'] for ex in data.get('sell', [])[:10]]
@@ -58,7 +58,7 @@ class RateHandler:
                         mid = (avg_buy + avg_sell) / 2
                     else:
                         mid = avg_buy if avg_buy is not None else (avg_sell if avg_sell is not None else None)
-                    return round(mid - 1.5, 2) if mid is not None else None
+                    return round(mid, 2) if mid is not None else None
                 return None
 
             # Сначала пытаемся получить из кэша
@@ -216,10 +216,10 @@ class RateHandler:
                     self.db.log_command(user.id, 'get_rate', '', response_time)
                     return
                 mid = (avg_buy_rate + avg_sell_rate) / 2 if (avg_buy_rate is not None and avg_sell_rate is not None) else (avg_buy_rate if avg_buy_rate is not None else avg_sell_rate)
-                rate_value = round(mid - 1.5, 2)
+                rate_value = round(mid, 2)
                 # Подробное логирование для верификации результата
                 logger.info(
-                    f"Калькуляция курса (BestChange T-Bank): avg_buy_top10={avg_buy_rate}, avg_sell_top10={avg_sell_rate}, mid={mid}, final(-1.5)={rate_value}"
+                    f"Калькуляция курса (BestChange T-Bank): avg_buy_top10={avg_buy_rate}, avg_sell_top10={avg_sell_rate}, mid={mid}, final={rate_value}"
                 )
                 # Формат ответа по требованию
                 buy_display = f"{avg_buy_rate:.2f}₽" if avg_buy_rate else "—"

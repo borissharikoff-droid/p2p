@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 Парсер курсов USDT/A7A5 с биржи Grinex
-Берёт цену продажи и покупки, считает среднее - 1.5
+Берёт цену продажи и покупки, считает среднее
 """
 
 import requests
@@ -177,9 +177,9 @@ class GrinexParser:
             mid_price = (bid_price + ask_price) / 2
             logger.info(f"Средняя цена: {mid_price}")
             
-            # Вычитаем 1.5
-            final_rate = round(mid_price - 1.5, 2)
-            logger.info(f"Итоговый курс (-1.5): {final_rate}")
+            # Используем среднюю цену как есть
+            final_rate = round(mid_price, 2)
+            logger.info(f"Итоговый курс: {final_rate}")
             
             return {
                 'bid_price': bid_price,
@@ -255,7 +255,7 @@ def main():
         print(f"Цена покупки (bid): {grinex_data.get('bid_price', 0)}")
         print(f"Цена продажи (ask): {grinex_data.get('ask_price', 0)}")
         print(f"Средняя цена: {grinex_data.get('mid_price', 0)}")
-        print(f"Итоговый курс (-1.5): {grinex_data.get('final_rate', 0)}")
+        print(f"Итоговый курс: {grinex_data.get('final_rate', 0)}")
     else:
         print(f"Ошибка: {result.get('error', 'Неизвестная ошибка')}")
 
